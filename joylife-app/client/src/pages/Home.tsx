@@ -1,20 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Row, Col, Button, Select, Space, Empty, Spin, Result } from 'antd';
-import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Row, Col, Button, Select, Empty, Spin, message } from 'antd';
+import { FilterOutlined, ReloadOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
+import { useNavigate } from 'react-router-dom';
 import LocationBar from '@/components/home/LocationBar';
 import CategoryNav from '@/components/home/CategoryNav';
 import MerchantCard from '@/components/home/MerchantCard';
 import LocationModal from '@/components/home/LocationModal';
 import HotBanner from '@/components/home/HotBanner';
-import { Merchant, UserLocation, SearchFilter } from '@/types/home';
+import { UserLocation } from '@/types/home';
 import { categories, mockMerchants, hotContents, defaultLocation } from '@/data/mockData';
+import { getCurrentLocation } from '@/utils/geolocation';
 
 const { Option } = Select;
 
 const HomePage: React.FC = () => {
+  const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore((state) => state.userInfo);
 
   const [location, setLocation] = useState<UserLocation>(defaultLocation);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
@@ -23,13 +26,43 @@ const HomePage: React.FC = () => {
   const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'price' | 'default'>('default');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
+    const initLocation = async () => {
+      setLocating(true);
+      try {
+        const currentLocation = await getCurrentLocation();
+        setLocation(currentLocation);
+        message.success('定位成功');
+      } catch (error: any) {
+        message.warning('自动定位失败，使用默认位置');
+      } finally {
+        setLocating(false);
+      }
+    };
+
     const timer = setTimeout(() => {
       setLoading(false);
+      initLocation();
     }, 500);
+
     return () => clearTimeout(timer);
   }, []);
+
+  const handleAutoLocate = async () => {
+    setLocating(true);
+    message.loading({ content: '正在定位...', key: 'locating' });
+    try {
+      const currentLocation = await getCurrentLocation();
+      setLocation(currentLocation);
+      message.success({ content: '定位成功', key: 'locating' });
+    } catch (error: any) {
+      message.error({ content: '定位失败，请手动选择位置', key: 'locating' });
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const filteredMerchants = useMemo(() => {
     let result = [...mockMerchants];
@@ -78,6 +111,15 @@ const HomePage: React.FC = () => {
     }, 300);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const handleGoLogin = () => {
+    navigate('/login');
+  };
+
   return (
     <div className="home-page">
       <div className="home-header">
@@ -90,12 +132,12 @@ const HomePage: React.FC = () => {
             {user ? (
               <div className="user-info">
                 <span className="welcome-text">你好，{user.nickname}</span>
-                <Button type="link" onClick={logout}>
+                <Button type="link" onClick={handleLogout}>
                   退出登录
                 </Button>
               </div>
             ) : (
-              <Button type="primary" size="small">
+              <Button type="primary" size="small" onClick={handleGoLogin}>
                 登录/注册
               </Button>
             )}
@@ -104,11 +146,19 @@ const HomePage: React.FC = () => {
       </div>
 
       <div className="home-content">
-        <LocationBar
-          location={location}
-          onChangeLocation={() => setLocationModalVisible(true)}
-          onSearch={handleSearch}
-        />
+        <div className="location-wrapper">
+          <LocationBar
+            location={location}
+            onChangeLocation={() => setLocationModalVisible(true)}
+            onSearch={handleSearch}
+          />
+          {locating && (
+            <div className="locating-tip">
+              <Spin size="small" />
+              <span>正在获取位置...</span>
+            </div>
+          )}
+        </div>
 
         <HotBanner contents={hotContents} />
 
@@ -143,6 +193,15 @@ const HomePage: React.FC = () => {
             <span className="radius-info">
               <FilterOutlined /> {radius}km内
             </span>
+            <Button
+              type="text"
+              size="small"
+              icon={<EnvironmentOutlined />}
+              onClick={handleAutoLocate}
+              loading={locating}
+            >
+              重新定位
+            </Button>
             <Button
               type="text"
               size="small"
@@ -244,6 +303,24 @@ const HomePage: React.FC = () => {
           margin: 0 auto;
           padding: 16px;
         }
+        .location-wrapper {
+          position: relative;
+        }
+        .locating-tip {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(255,255,255,0.95);
+          padding: 8px 16px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #666;
+          z-index: 10;
+        }
         .filter-bar {
           display: flex;
           justify-content: space-between;
@@ -263,7 +340,7 @@ const HomePage: React.FC = () => {
         }
         .filter-right {
           display: flex;
-          gap: 12px;
+          gap: 8px;
           align-items: center;
         }
         .radius-info {

@@ -35,6 +35,7 @@ const LoginForm: React.FC = () => {
   }, []);
 
   const handlePasswordLogin = async (values: { account: string; password: string }) => {
+    console.log('🔐 密码登录:', values);
     setLoading(true);
     try {
       const res: any = await authApi.login({
@@ -42,17 +43,25 @@ const LoginForm: React.FC = () => {
         password: values.password,
         loginType: 'password',
       });
-      login(res.data);
-      message.success('登录成功');
-      navigate('/home');
+      console.log('✅ 登录响应:', res);
+      
+      if (res.data) {
+        login(res.data);
+        message.success('登录成功');
+        navigate('/home', { replace: true });
+      } else {
+        message.error('登录响应数据异常');
+      }
     } catch (error: any) {
-      message.error(error.message || '登录失败');
+      console.error('❌ 登录失败:', error);
+      message.error(error.message || '登录失败，请检查手机号和密码');
     } finally {
       setLoading(false);
     }
   };
 
   const handleCodeLogin = async (values: { account: string; code: string }) => {
+    console.log('🔐 验证码登录:', values);
     setLoading(true);
     try {
       const res: any = await authApi.login({
@@ -60,11 +69,18 @@ const LoginForm: React.FC = () => {
         code: values.code,
         loginType: 'code',
       });
-      login(res.data);
-      message.success('登录成功');
-      navigate('/home');
+      console.log('✅ 登录响应:', res);
+      
+      if (res.data) {
+        login(res.data);
+        message.success('登录成功');
+        navigate('/home', { replace: true });
+      } else {
+        message.error('登录响应数据异常');
+      }
     } catch (error: any) {
-      message.error(error.message || '登录失败');
+      console.error('❌ 登录失败:', error);
+      message.error(error.message || '登录失败，请检查手机号和验证码');
     } finally {
       setLoading(false);
     }
@@ -80,10 +96,13 @@ const LoginForm: React.FC = () => {
     try {
       const res: any = await authApi.sendCode({ phone, type: 'login' });
       message.success('验证码已发送，请查看后端控制台');
+      console.log('📱 验证码发送响应:', res);
+      
       if (res.data?.code) {
         setLatestCode(res.data.code);
         codeForm.setFieldsValue({ code: res.data.code });
       }
+      
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -95,7 +114,8 @@ const LoginForm: React.FC = () => {
         });
       }, 1000);
     } catch (error: any) {
-      message.error(error.message || '发送失败');
+      console.error('❌ 发送验证码失败:', error);
+      message.error(error.message || '发送失败，请稍后重试');
     } finally {
       setCodeLoading(false);
     }
