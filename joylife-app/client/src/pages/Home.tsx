@@ -32,11 +32,23 @@ const HomePage: React.FC = () => {
     const initLocation = async () => {
       setLocating(true);
       try {
-        const currentLocation = await getCurrentLocation();
+        const currentLocation = await getCurrentLocation({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          useIPFallback: true,
+        });
         setLocation(currentLocation);
-        message.success('定位成功');
+        if (currentLocation.address.includes('IP 定位')) {
+          message.info(`已通过 IP 定位到 ${currentLocation.city} ${currentLocation.district}，可点击切换`);
+        } else {
+          message.success('定位成功');
+        }
       } catch (error: any) {
-        message.warning('自动定位失败，使用默认位置');
+        console.warn('📍 定位失败:', error.message);
+        message.warning({
+          content: '自动定位失败，已使用默认位置，可点击定位图标手动选择',
+          duration: 5,
+        });
       } finally {
         setLocating(false);
       }
@@ -52,13 +64,28 @@ const HomePage: React.FC = () => {
 
   const handleAutoLocate = async () => {
     setLocating(true);
-    message.loading({ content: '正在定位...', key: 'locating' });
+    message.loading({ content: '正在获取位置...', key: 'locating', duration: 0 });
     try {
-      const currentLocation = await getCurrentLocation();
+      const currentLocation = await getCurrentLocation({
+        enableHighAccuracy: true,
+        timeout: 15000,
+        useIPFallback: true,
+      });
       setLocation(currentLocation);
-      message.success({ content: '定位成功', key: 'locating' });
+      if (currentLocation.address.includes('IP 定位')) {
+        message.success({ 
+          content: `已通过 IP 定位到 ${currentLocation.city} ${currentLocation.district}`, 
+          key: 'locating' 
+        });
+      } else {
+        message.success({ content: '定位成功', key: 'locating' });
+      }
     } catch (error: any) {
-      message.error({ content: '定位失败，请手动选择位置', key: 'locating' });
+      console.warn('📍 手动定位失败:', error.message);
+      message.error({ 
+        content: '定位失败，请手动选择位置', 
+        key: 'locating' 
+      });
     } finally {
       setLocating(false);
     }
