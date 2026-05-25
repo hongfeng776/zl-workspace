@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authService } from '../services/authService';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { verifyCode } from '../utils/auth';
 
 const router = Router();
 
@@ -20,7 +21,6 @@ router.post('/register', async (req: Request, res: Response) => {
       return res.status(400).json({ code: 400, message: '密码长度不能少于6位' });
     }
 
-    const { verifyCode } = require('../utils/auth');
     const isValid = await verifyCode(code, 'register', phone);
     if (!isValid) {
       return res.status(400).json({ code: 400, message: '验证码错误或已过期' });
@@ -29,7 +29,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const result = await authService.register({ nickname, phone, password, email });
     res.json({ code: 200, message: '注册成功', data: result });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '注册失败' });
+    res.status(400).json({ code: 400, message: error.message || '注册失败' });
   }
 });
 
@@ -50,7 +50,6 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     if (loginType === 'code') {
-      const { verifyCode } = require('../utils/auth');
       const isValid = await verifyCode(code, 'login', account);
       if (!isValid) {
         return res.status(400).json({ code: 400, message: '验证码错误或已过期' });
@@ -60,7 +59,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const result = await authService.login({ account, password, code, loginType });
     res.json({ code: 200, message: '登录成功', data: result });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '登录失败' });
+    res.status(400).json({ code: 400, message: error.message || '登录失败' });
   }
 });
 
@@ -72,19 +71,23 @@ router.post('/send-code', async (req: Request, res: Response) => {
       return res.status(400).json({ code: 400, message: '请指定验证码类型' });
     }
 
+    if (!['register', 'login', 'reset_password'].includes(type)) {
+      return res.status(400).json({ code: 400, message: '无效的验证码类型' });
+    }
+
     if (phone) {
-      await authService.sendCode(phone, type);
+      await authService.sendCode(phone, type as 'register' | 'login' | 'reset_password');
       return res.json({ code: 200, message: '验证码已发送' });
     }
 
     if (email) {
-      await authService.sendEmailCode(email, type);
+      await authService.sendEmailCode(email, type as 'register' | 'login' | 'reset_password');
       return res.json({ code: 200, message: '验证码已发送' });
     }
 
     return res.status(400).json({ code: 400, message: '请提供手机号或邮箱' });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '发送验证码失败' });
+    res.status(400).json({ code: 400, message: error.message || '发送验证码失败' });
   }
 });
 
@@ -103,7 +106,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     await authService.resetPassword({ phone, email, code, newPassword });
     res.json({ code: 200, message: '密码重置成功' });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '重置密码失败' });
+    res.status(400).json({ code: 400, message: error.message || '重置密码失败' });
   }
 });
 
@@ -122,7 +125,7 @@ router.post('/third-party-login', async (req: Request, res: Response) => {
     const result = await authService.thirdPartyLogin({ provider, code, nickname, avatar });
     res.json({ code: 200, message: '登录成功', data: result });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '第三方登录失败' });
+    res.status(400).json({ code: 400, message: error.message || '第三方登录失败' });
   }
 });
 
@@ -138,7 +141,7 @@ router.post('/bind-third-party', authenticate, async (req: AuthRequest, res: Res
     await authService.bindThirdParty(userId, provider, code);
     res.json({ code: 200, message: '绑定成功' });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '绑定失败' });
+    res.status(400).json({ code: 400, message: error.message || '绑定失败' });
   }
 });
 
@@ -148,7 +151,7 @@ router.get('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const profile = await authService.getProfile(userId);
     res.json({ code: 200, message: '获取成功', data: profile });
   } catch (error: any) {
-    res.status(500).json({ code: 500, message: error.message || '获取用户信息失败' });
+    res.status(400).json({ code: 400, message: error.message || '获取用户信息失败' });
   }
 });
 
