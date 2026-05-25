@@ -1,188 +1,320 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Card, message, Modal } from 'antd';
-import {
-  UserOutlined,
-  LogoutOutlined,
-  WechatOutlined,
-  AlipayCircleOutlined,
-} from '@ant-design/icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Row, Col, Button, Select, Space, Empty, Spin, Result } from 'antd';
+import { FilterOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
-import { authApi } from '@/api/auth';
+import LocationBar from '@/components/home/LocationBar';
+import CategoryNav from '@/components/home/CategoryNav';
+import MerchantCard from '@/components/home/MerchantCard';
+import LocationModal from '@/components/home/LocationModal';
+import HotBanner from '@/components/home/HotBanner';
+import { Merchant, UserLocation, SearchFilter } from '@/types/home';
+import { categories, mockMerchants, hotContents, defaultLocation } from '@/data/mockData';
 
-const Home: React.FC = () => {
-  const navigate = useNavigate();
-  const userInfo = useAuthStore((state) => state.userInfo);
+const { Option } = Select;
+
+const HomePage: React.FC = () => {
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
 
-  const handleLogout = () => {
-    Modal.confirm({
-      title: '确认退出',
-      content: '确定要退出登录吗？',
-      onOk: async () => {
-        try {
-          await authApi.logout();
-        } catch (e) {
-          // ignore
-        }
-        logout();
-        message.success('已退出登录');
-        navigate('/login');
-      },
-    });
+  const [location, setLocation] = useState<UserLocation>(defaultLocation);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [radius, setRadius] = useState(3);
+  const [sortBy, setSortBy] = useState<'distance' | 'rating' | 'price' | 'default'>('default');
+  const [keyword, setKeyword] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const filteredMerchants = useMemo(() => {
+    let result = [...mockMerchants];
+
+    if (activeCategory !== 'all') {
+      result = result.filter((m) => m.categoryType === activeCategory);
+    }
+
+    result = result.filter((m) => m.distance <= radius);
+
+    if (keyword) {
+      const lowerKeyword = keyword.toLowerCase();
+      result = result.filter(
+        (m) =>
+          m.name.toLowerCase().includes(lowerKeyword) ||
+          m.category.toLowerCase().includes(lowerKeyword) ||
+          m.tags.some((t) => t.toLowerCase().includes(lowerKeyword))
+      );
+    }
+
+    switch (sortBy) {
+      case 'distance':
+        result.sort((a, b) => a.distance - b.distance);
+        break;
+      case 'rating':
+        result.sort((a, b) => b.rating - a.rating);
+        break;
+      case 'price':
+        result.sort((a, b) => a.avgPrice - b.avgPrice);
+        break;
+      default:
+        result.sort((a, b) => (b.isHot ? 1 : 0) - (a.isHot ? 1 : 0));
+    }
+
+    return result;
+  }, [activeCategory, radius, sortBy, keyword]);
+
+  const handleSearch = (value: string) => {
+    setKeyword(value);
   };
 
-  const handleBindWechat = () => {
-    const mockCode = `bind_wx_${Date.now()}`;
-    Modal.info({
-      title: '绑定微信',
-      content: '模拟绑定微信账号',
-      onOk: async () => {
-        try {
-          await authApi.bindThirdParty({ provider: 'wechat', code: mockCode });
-          message.success('绑定成功');
-        } catch (error: any) {
-          message.error(error.message || '绑定失败');
-        }
-      },
-    });
-  };
-
-  const handleBindAlipay = () => {
-    const mockCode = `bind_alipay_${Date.now()}`;
-    Modal.info({
-      title: '绑定支付宝',
-      content: '模拟绑定支付宝账号',
-      onOk: async () => {
-        try {
-          await authApi.bindThirdParty({ provider: 'alipay', code: mockCode });
-          message.success('绑定成功');
-        } catch (error: any) {
-          message.error(error.message || '绑定失败');
-        }
-      },
-    });
+  const handleRefresh = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 300);
   };
 
   return (
-    <div className="home-container">
+    <div className="home-page">
       <div className="home-header">
-        <h1>乐活生活</h1>
+        <div className="header-content">
+          <div className="logo">
+            <span className="logo-icon">🌿</span>
+            <span className="logo-text">乐活生活</span>
+          </div>
+          <div className="header-right">
+            {user ? (
+              <div className="user-info">
+                <span className="welcome-text">你好，{user.nickname}</span>
+                <Button type="link" onClick={logout}>
+                  退出登录
+                </Button>
+              </div>
+            ) : (
+              <Button type="primary" size="small">
+                登录/注册
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
+
       <div className="home-content">
-        <Card title="个人信息" className="profile-card">
-          <div className="avatar">
-            <UserOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-          </div>
-          <h2>{userInfo?.nickname}</h2>
-          <p className="phone">手机号：{userInfo?.phone}</p>
-          {userInfo?.email && <p className="email">邮箱：{userInfo.email}</p>}
-        </Card>
+        <LocationBar
+          location={location}
+          onChangeLocation={() => setLocationModalVisible(true)}
+          onSearch={handleSearch}
+        />
 
-        <Card title="账号绑定" className="bind-card">
-          <div className="bind-item">
-            <div className="bind-info">
-              <WechatOutlined style={{ fontSize: 24, color: '#07C160' }} />
-              <span>微信</span>
-            </div>
-            {userInfo?.wechatOpenId ? (
-              <span className="bound">已绑定</span>
-            ) : (
-              <Button type="link" onClick={handleBindWechat}>
-                绑定
-              </Button>
-            )}
-          </div>
-          <div className="bind-item">
-            <div className="bind-info">
-              <AlipayCircleOutlined style={{ fontSize: 24, color: '#1677FF' }} />
-              <span>支付宝</span>
-            </div>
-            {userInfo?.alipayUserId ? (
-              <span className="bound">已绑定</span>
-            ) : (
-              <Button type="link" onClick={handleBindAlipay}>
-                绑定
-              </Button>
-            )}
-          </div>
-        </Card>
+        <HotBanner contents={hotContents} />
 
-        <Button
-          type="primary"
-          danger
-          icon={<LogoutOutlined />}
-          onClick={handleLogout}
-          block
-          size="large"
-        >
-          退出登录
-        </Button>
+        <CategoryNav
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+        />
+
+        <div className="filter-bar">
+          <div className="filter-left">
+            <Button
+              type={activeCategory === 'all' ? 'primary' : 'default'}
+              size="small"
+              onClick={() => setActiveCategory('all')}
+            >
+              全部
+            </Button>
+            <Select
+              value={sortBy}
+              size="small"
+              onChange={setSortBy}
+              className="sort-select"
+            >
+              <Option value="default">综合排序</Option>
+              <Option value="distance">距离最近</Option>
+              <Option value="rating">评分最高</Option>
+              <Option value="price">价格最低</Option>
+            </Select>
+          </div>
+          <div className="filter-right">
+            <span className="radius-info">
+              <FilterOutlined /> {radius}km内
+            </span>
+            <Button
+              type="text"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+            >
+              刷新
+            </Button>
+          </div>
+        </div>
+
+        <div className="merchants-section">
+          <div className="section-header">
+            <h2 className="section-title">
+              {activeCategory === 'all' ? '推荐商家' : `${categories.find((c) => c.type === activeCategory)?.name || ''}`}
+            </h2>
+            <span className="result-count">
+              共找到 {filteredMerchants.length} 家
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="loading-container">
+              <Spin size="large" tip="加载中..." />
+            </div>
+          ) : filteredMerchants.length > 0 ? (
+            <Row gutter={[16, 16]}>
+              {filteredMerchants.map((merchant) => (
+                <Col key={merchant.id} xs={24} sm={12} md={8} lg={8}>
+                  <MerchantCard merchant={merchant} />
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Empty
+              description="暂无符合条件的商家"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            >
+              <Button type="primary" onClick={() => setRadius(10)}>
+                扩大搜索范围
+              </Button>
+            </Empty>
+          )}
+        </div>
       </div>
+
+      <LocationModal
+        visible={locationModalVisible}
+        onClose={() => setLocationModalVisible(false)}
+        onSelectLocation={setLocation}
+        currentRadius={radius}
+        onRadiusChange={setRadius}
+      />
+
       <style>{`
-        .home-container {
+        .home-page {
           min-height: 100vh;
-          background: #f5f5f5;
+          background: linear-gradient(180deg, #f6ffed 0%, #f0f5f0 200px, #f5f5f5 400px);
         }
         .home-header {
-          background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-          padding: 60px 20px 40px;
-          text-align: center;
+          background: white;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          position: sticky;
+          top: 0;
+          z-index: 100;
         }
-        .home-header h1 {
-          color: white;
-          font-size: 32px;
-          margin: 0;
-        }
-        .home-content {
-          max-width: 500px;
-          margin: -20px auto 0;
-          padding: 20px;
-        }
-        .profile-card {
-          text-align: center;
-          margin-bottom: 20px;
-        }
-        .profile-card .avatar {
-          width: 80px;
-          height: 80px;
-          background: #f6ffed;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 16px;
-        }
-        .profile-card h2 {
-          margin: 0 0 8px;
-        }
-        .profile-card .phone,
-        .profile-card .email {
-          color: #666;
-          margin: 4px 0;
-        }
-        .bind-card .bind-item {
+        .header-content {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 12px 16px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 0;
-          border-bottom: 1px solid #f0f0f0;
         }
-        .bind-card .bind-item:last-child {
-          border-bottom: none;
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
-        .bind-info {
+        .logo-icon {
+          font-size: 24px;
+        }
+        .logo-text {
+          font-size: 20px;
+          font-weight: 600;
+          color: #52c41a;
+        }
+        .user-info {
           display: flex;
           align-items: center;
           gap: 12px;
         }
-        .bound {
-          color: #52c41a;
+        .welcome-text {
+          color: #666;
           font-size: 14px;
+        }
+        .home-content {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 16px;
+        }
+        .filter-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: white;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin-bottom: 16px;
+        }
+        .filter-left {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        .sort-select {
+          min-width: 120px;
+        }
+        .filter-right {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+        .radius-info {
+          color: #666;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .merchants-section {
+          background: white;
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        .section-title {
+          margin: 0;
+          font-size: 18px;
+          color: #333;
+        }
+        .result-count {
+          color: #999;
+          font-size: 13px;
+        }
+        .loading-container {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 60px 0;
+        }
+        @media (max-width: 640px) {
+          .welcome-text {
+            display: none;
+          }
+          .filter-bar {
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+          }
+          .filter-right {
+            justify-content: space-between;
+          }
         }
       `}</style>
     </div>
   );
 };
 
-export default Home;
+export default HomePage;
