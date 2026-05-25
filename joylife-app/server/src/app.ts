@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config';
+import { smsService } from './services/notificationService';
 
 const app = express();
 
@@ -32,6 +33,14 @@ let users: User[] = [];
 let verificationCodes: VerificationCode[] = [];
 let userIdCounter = 1;
 let codeIdCounter = 1;
+
+let lastSentCode: {
+  phone?: string;
+  email?: string;
+  code: string;
+  type: string;
+  timestamp: Date;
+} | null = null;
 
 function hashPassword(password: string): string {
   return Buffer.from(password).toString('base64');
@@ -87,11 +96,28 @@ function createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
   return user;
 }
 
+function findValidCode(
+  code: string,
+  type: string,
+  phone?: string,
+  email?: string
+): VerificationCode | undefined {
+  const now = new Date();
+  return verificationCodes.find(
+    c =>
+      (c.phone === phone || c.email === email) &&
+      c.code === code &&
+      c.type === type &&
+      !c.used &&
+      c.expiresAt > now
+  );
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post('/api/auth/send-code', (req, res) => {
+app.post('/api/auth/send-code', async (req, res) => {
   try {
     const { phone, email, type } = req.body;
 
@@ -120,14 +146,26 @@ app.post('/api/auth/send-code', (req, res) => {
         id: codeIdCounter++,
         phone,
         code,
-        type,
+        type: type as any,
         expiresAt,
         used: false,
         createdAt: new Date(),
       });
 
-      console.log(`[SMS Mock] 发送到 ${phone}: 验证码 ${code}, 类型: ${type}`);
-      return res.json({ code: 200, message: '验证码已发送', data: { code } });
+      lastSentCode = { phone, code, type, timestamp: new Date() };
+
+      const result = await smsService.sendVerificationCode(phone, code, type);
+
+      return res.json({
+        code: 200,
+        message: '验证码已发送',
+        data: {
+          code,
+          phone,
+          expiresIn: 300,
+          sendResult: result,
+        },
+      });
     }
 
     if (email) {
@@ -147,20 +185,48 @@ app.post('/api/auth/send-code', (req, res) => {
         id: codeIdCounter++,
         email,
         code,
-        type,
+        type: type as any,
         expiresAt,
         used: false,
         createdAt: new Date(),
       });
 
-      console.log(`[EMAIL Mock] 发送到 ${email}: 验证码 ${code}, 类型: ${type}`);
-      return res.json({ code: 200, message: '验证码已发送', data: { code } });
+      lastSentCode = { email, code, type, timestamp: new Date() };
+
+      const result = await smsService.sendEmailCode(email, code, type);
+
+      return res.json({
+        code: 200,
+        message: '验证码已发送',
+        data: {
+          code,
+          email,
+          expiresIn: 300,
+          sendResult: result,
+        },
+      });
     }
 
     return res.status(400).json({ code: 400, message: '请提供手机号或邮箱' });
   } catch (error: any) {
+    console.error('发送验证码失败:', error);
     res.status(400).json({ code: 400, message: error.message || '发送验证码失败' });
   }
+});
+
+app.get('/api/auth/latest-code', (req, res) => {
+  if (lastSentCode) {
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    if (lastSentCode.timestamp > fiveMinutesAgo) {
+      return res.json({
+        code: 200,
+        message: '获取成功',
+        data: lastSentCode,
+      });
+    }
+  }
+  res.json({ code: 200, message: '暂无验证码', data: null });
 });
 
 app.post('/api/auth/register', (req, res) => {
@@ -179,10 +245,7 @@ app.post('/api/auth/register', (req, res) => {
       return res.status(400).json({ code: 400, message: '密码长度不能少于6位' });
     }
 
-    const now = new Date();
-    const codeRecord = verificationCodes.find(
-      c => c.phone === phone && c.code === code && c.type === 'register' && !c.used && c.expiresAt > now
-    );
+    const codeRecord = findValidCode(code, 'register', phone);
 
     if (!codeRecord) {
       return res.status(400).json({ code: 400, message: '验证码错误或已过期' });
@@ -225,6 +288,7 @@ app.post('/api/auth/register', (req, res) => {
       },
     });
   } catch (error: any) {
+    console.error('注册失败:', error);
     res.status(400).json({ code: 400, message: error.message || '注册失败' });
   }
 });
@@ -255,10 +319,7 @@ app.post('/api/auth/login', (req, res) => {
         return res.status(400).json({ code: 400, message: '密码错误' });
       }
     } else {
-      const now = new Date();
-      const codeRecord = verificationCodes.find(
-        c => c.phone === account && c.code === code && c.type === 'login' && !c.used && c.expiresAt > now
-      );
+      const codeRecord = findValidCode(code, 'login', account);
       if (!codeRecord) {
         return res.status(400).json({ code: 400, message: '验证码错误或已过期' });
       }
@@ -285,6 +346,7 @@ app.post('/api/auth/login', (req, res) => {
       },
     });
   } catch (error: any) {
+    console.error('登录失败:', error);
     res.status(400).json({ code: 400, message: error.message || '登录失败' });
   }
 });
@@ -312,15 +374,7 @@ app.post('/api/auth/reset-password', (req, res) => {
       return res.status(400).json({ code: 400, message: '用户不存在' });
     }
 
-    const now = new Date();
-    const codeRecord = verificationCodes.find(
-      c =>
-        (c.phone === phone || c.email === email) &&
-        c.code === code &&
-        c.type === 'reset_password' &&
-        !c.used &&
-        c.expiresAt > now
-    );
+    const codeRecord = findValidCode(code, 'reset_password', phone, email);
 
     if (!codeRecord) {
       return res.status(400).json({ code: 400, message: '验证码错误或已过期' });
@@ -332,6 +386,7 @@ app.post('/api/auth/reset-password', (req, res) => {
 
     res.json({ code: 200, message: '密码重置成功' });
   } catch (error: any) {
+    console.error('重置密码失败:', error);
     res.status(400).json({ code: 400, message: error.message || '重置密码失败' });
   }
 });
@@ -396,6 +451,7 @@ app.post('/api/auth/third-party-login', (req, res) => {
       },
     });
   } catch (error: any) {
+    console.error('第三方登录失败:', error);
     res.status(400).json({ code: 400, message: error.message || '第三方登录失败' });
   }
 });
@@ -432,6 +488,7 @@ app.post('/api/auth/bind-third-party', (req, res) => {
 
     res.json({ code: 200, message: '绑定成功' });
   } catch (error: any) {
+    console.error('绑定失败:', error);
     res.status(400).json({ code: 400, message: error.message || '绑定失败' });
   }
 });
@@ -470,6 +527,7 @@ app.get('/api/auth/profile', (req, res) => {
       },
     });
   } catch (error: any) {
+    console.error('获取用户信息失败:', error);
     res.status(400).json({ code: 400, message: error.message || '获取用户信息失败' });
   }
 });
@@ -479,7 +537,15 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ code: 200, message: 'Server is running', data: { timestamp: new Date().toISOString() } });
+  res.json({
+    code: 200,
+    message: 'Server is running',
+    data: {
+      timestamp: new Date().toISOString(),
+      usersCount: users.length,
+      codesCount: verificationCodes.length,
+    },
+  });
 });
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -488,6 +554,21 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 app.listen(config.port, '0.0.0.0', () => {
-  console.log(`Server is running on http://localhost:${config.port}`);
-  console.log(`Server is accessible on http://0.0.0.0:${config.port}`);
+  console.log(`========================================`);
+  console.log(`🚀 乐活生活后端服务已启动`);
+  console.log(`----------------------------------------`);
+  console.log(`📡 本地访问: http://localhost:${config.port}`);
+  console.log(`🌐 网络访问: http://0.0.0.0:${config.port}`);
+  console.log(`----------------------------------------`);
+  console.log(`📋 可用接口:`);
+  console.log(`  POST /api/auth/send-code      - 发送验证码`);
+  console.log(`  GET  /api/auth/latest-code    - 获取最新验证码`);
+  console.log(`  POST /api/auth/register       - 用户注册`);
+  console.log(`  POST /api/auth/login          - 用户登录`);
+  console.log(`  POST /api/auth/reset-password - 重置密码`);
+  console.log(`  POST /api/auth/third-party-login - 第三方登录`);
+  console.log(`  GET  /api/auth/profile        - 获取用户信息`);
+  console.log(`  POST /api/auth/logout         - 退出登录`);
+  console.log(`  GET  /api/health              - 健康检查`);
+  console.log(`========================================`);
 });

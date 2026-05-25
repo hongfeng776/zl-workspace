@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, Tabs, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Tabs, message, Alert } from 'antd';
 import { LockOutlined, MobileOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import WeChatLogin from './WeChatLogin';
 import AlipayLogin from './AlipayLogin';
+import request from '@/api/request';
 
 const LoginForm: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,23 @@ const LoginForm: React.FC = () => {
   const [countdown, setCountdown] = useState(0);
   const [passwordForm] = Form.useForm();
   const [codeForm] = Form.useForm();
+  const [latestCode, setLatestCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLatestCode = async () => {
+      try {
+        const res: any = await request.get('/auth/latest-code');
+        if (res.data?.code) {
+          setLatestCode(res.data.code);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchLatestCode();
+    const interval = setInterval(fetchLatestCode, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handlePasswordLogin = async (values: { account: string; password: string }) => {
     setLoading(true);
@@ -60,8 +78,12 @@ const LoginForm: React.FC = () => {
 
     setCodeLoading(true);
     try {
-      await authApi.sendCode({ phone, type: 'login' });
-      message.success('验证码已发送');
+      const res: any = await authApi.sendCode({ phone, type: 'login' });
+      message.success('验证码已发送，请查看后端控制台');
+      if (res.data?.code) {
+        setLatestCode(res.data.code);
+        codeForm.setFieldsValue({ code: res.data.code });
+      }
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -103,6 +125,16 @@ const LoginForm: React.FC = () => {
 
   const codeFormItem = (
     <Form form={codeForm} name="code_login" onFinish={handleCodeLogin} size="large">
+      {latestCode && (
+        <Alert
+          message={`最新验证码: ${latestCode}`}
+          description="该验证码仅用于测试，生产环境请通过短信/邮件获取"
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Form.Item
         name="account"
         rules={[{ required: true, message: '请输入手机号' }]}

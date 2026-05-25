@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, message, Alert } from 'antd';
 import { UserOutlined, LockOutlined, MobileOutlined, MailOutlined, SafetyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
+import request from '@/api/request';
 
 const RegisterForm: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +13,23 @@ const RegisterForm: React.FC = () => {
   const [codeLoading, setCodeLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [form] = Form.useForm();
+  const [latestCode, setLatestCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLatestCode = async () => {
+      try {
+        const res: any = await request.get('/auth/latest-code');
+        if (res.data?.code) {
+          setLatestCode(res.data.code);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchLatestCode();
+    const interval = setInterval(fetchLatestCode, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSendCode = async (phone: string) => {
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
@@ -21,8 +39,12 @@ const RegisterForm: React.FC = () => {
 
     setCodeLoading(true);
     try {
-      await authApi.sendCode({ phone, type: 'register' });
-      message.success('验证码已发送');
+      const res: any = await authApi.sendCode({ phone, type: 'register' });
+      message.success('验证码已发送，请查看后端控制台');
+      if (res.data?.code) {
+        setLatestCode(res.data.code);
+        form.setFieldsValue({ code: res.data.code });
+      }
       setCountdown(60);
       const timer = setInterval(() => {
         setCountdown((prev) => {
@@ -78,6 +100,16 @@ const RegisterForm: React.FC = () => {
         <h1>乐活生活</h1>
         <p>创建新账号</p>
       </div>
+      {latestCode && (
+        <Alert
+          message={`最新验证码: ${latestCode}`}
+          description="该验证码仅用于测试，生产环境请通过短信/邮件获取"
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
       <Form form={form} name="register" onFinish={handleRegister} size="large">
         <Form.Item
           name="nickname"
