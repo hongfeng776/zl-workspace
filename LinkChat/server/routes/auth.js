@@ -49,14 +49,7 @@ router.post('/send-code', [
       }
     }
 
-    if (type === 'set_password') {
-      const existingUser = await dbAdapter.User.findOne({ phone });
-      if (!existingUser) {
-        return res.status(400).json({ message: '该手机号未注册' });
-      }
-    }
-
-    if (type === 'change_password') {
+    if (type === 'set_password' || type === 'change_password') {
       const existingUser = await dbAdapter.User.findOne({ phone });
       if (!existingUser) {
         return res.status(400).json({ message: '该手机号未注册' });
@@ -71,7 +64,11 @@ router.post('/send-code', [
 
     console.log(`验证码: ${phone} - ${type} - ${code}`);
 
-    res.json({ message: '验证码发送成功', code: process.env.NODE_ENV === 'development' ? code : undefined });
+    res.json({ 
+      message: '验证码发送成功', 
+      code: process.env.NODE_ENV === 'development' ? code : undefined,
+      expiresAt: expiresAt.getTime()
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: '服务器错误' });
@@ -126,7 +123,9 @@ router.post('/register', [
         id: user._id,
         phone: user.phone,
         nickname: user.nickname,
-        avatar: user.avatar
+        avatar: user.avatar,
+        hasPassword: true,
+        thirdPartyLogin: false
       }
     });
   } catch (error) {
@@ -152,6 +151,10 @@ router.post('/login', [
       return res.status(400).json({ message: '手机号或密码错误' });
     }
 
+    if (!user.password) {
+      return res.status(400).json({ message: '该账号未设置密码，请使用验证码登录或第三方登录' });
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: '手机号或密码错误' });
@@ -170,7 +173,9 @@ router.post('/login', [
         id: user._id,
         phone: user.phone,
         nickname: user.nickname,
-        avatar: user.avatar
+        avatar: user.avatar,
+        hasPassword: !!user.password,
+        thirdPartyLogin: !!(user.wechatId || user.qqId)
       }
     });
   } catch (error) {
@@ -227,7 +232,9 @@ router.post('/login-code', [
         id: user._id,
         phone: user.phone,
         nickname: user.nickname,
-        avatar: user.avatar
+        avatar: user.avatar,
+        hasPassword: !!user.password,
+        thirdPartyLogin: !!(user.wechatId || user.qqId)
       }
     });
   } catch (error) {
@@ -319,7 +326,9 @@ router.post('/third-party', [
         id: user._id,
         phone: user.phone,
         nickname: user.nickname,
-        avatar: user.avatar
+        avatar: user.avatar,
+        hasPassword: !!user.password,
+        thirdPartyLogin: !!(user.wechatId || user.qqId)
       }
     });
   } catch (error) {
@@ -338,6 +347,7 @@ router.get('/user-info', auth, async (req, res) => {
         nickname: user.nickname,
         avatar: user.avatar,
         securityVerified: user.securityVerified,
+        securityQuestions: (user.securityQuestions || []).map(q => ({ question: q.question })),
         hasPassword: !!user.password,
         createdAt: user.createdAt,
         thirdPartyLogin: !!(user.wechatId || user.qqId)
@@ -396,7 +406,9 @@ router.post('/bind-phone', auth, [
         id: user._id,
         phone: user.phone,
         nickname: user.nickname,
-        avatar: user.avatar
+        avatar: user.avatar,
+        hasPassword: !!user.password,
+        thirdPartyLogin: !!(user.wechatId || user.qqId)
       }
     });
   } catch (error) {

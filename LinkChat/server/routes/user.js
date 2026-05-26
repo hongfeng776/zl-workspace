@@ -69,7 +69,7 @@ router.post('/security-verify', [
 });
 
 router.post('/security-check', [
-  body('answers').isObject().withMessage('请提供安全问题答案')
+  body('answers').notEmpty().withMessage('请提供安全问题答案')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -84,9 +84,11 @@ router.post('/security-check', [
       return res.status(400).json({ message: '请先设置安全问题' });
     }
 
+    const answerArray = Array.isArray(answers) ? answers : Object.values(answers);
+    
     let correctCount = 0;
     user.securityQuestions.forEach((q, index) => {
-      if (answers[index] && answers[index] === q.answer) {
+      if (answerArray[index] && answerArray[index].trim() === q.answer) {
         correctCount++;
       }
     });
@@ -146,16 +148,18 @@ router.post('/change-password', [
         return res.status(400).json({ message: '新密码不能与旧密码相同' });
       }
     } else {
-      if (!code || !phone) {
-        return res.status(400).json({ message: '请输入手机号和验证码' });
+      if (!code) {
+        return res.status(400).json({ message: '请输入验证码' });
       }
 
-      if (phone !== user.phone) {
+      const verifyPhone = phone || user.phone;
+      
+      if (verifyPhone !== user.phone) {
         return res.status(400).json({ message: '手机号与当前账号不匹配' });
       }
 
       const verification = await dbAdapter.VerificationCode.findOne({
-        phone,
+        phone: verifyPhone,
         code,
         type: 'set_password',
         used: false,
@@ -164,7 +168,7 @@ router.post('/change-password', [
 
       if (!verification) {
         const verification2 = await dbAdapter.VerificationCode.findOne({
-          phone,
+          phone: verifyPhone,
           code,
           type: 'change_password',
           used: false,

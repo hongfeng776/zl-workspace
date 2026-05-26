@@ -28,9 +28,10 @@ const Register = () => {
     setReceivedCode('')
     try {
       const response = await authApi.sendCode(phone, 'register')
-      if (response.data.code) {
-        setReceivedCode(response.data.code)
-        showToast(`验证码已发送：${response.data.code}`, 'success')
+      const receivedCodeValue = response.data?.code
+      if (receivedCodeValue) {
+        setReceivedCode(receivedCodeValue)
+        showToast(`验证码已发送：${receivedCodeValue}`, 'success')
       } else {
         showToast('验证码发送成功，请注意查收短信')
       }

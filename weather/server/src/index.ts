@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { authRoutes } from './routes/authRoutes';
 import { userRoutes } from './routes/userRoutes';
 import { socialRoutes } from './routes/socialRoutes';
+import { weatherRoutes } from './routes/weatherRoutes';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/weather', weatherRoutes);
 
 app.use(errorHandler);
 

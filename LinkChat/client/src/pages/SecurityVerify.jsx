@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { userApi } from '../utils/api'
 import { useAuthStore } from '../store/authStore'
@@ -19,9 +19,17 @@ const SecurityVerify = () => {
   const [selectedQuestions, setSelectedQuestions] = useState(['', '', ''])
   const [answers, setAnswers] = useState(['', '', ''])
   const [verifyAnswers, setVerifyAnswers] = useState(['', '', ''])
+  const [securityQuestions, setSecurityQuestions] = useState([])
   const [loading, setLoading] = useState(false)
   
   const { showToast, ToastComponent } = useToast()
+
+  useEffect(() => {
+    if (user?.securityVerified && user?.securityQuestions) {
+      setSecurityQuestions(user.securityQuestions)
+      setVerifyAnswers(new Array(user.securityQuestions.length).fill(''))
+    }
+  }, [user])
 
   const handleQuestionChange = (index, question) => {
     const newQuestions = [...selectedQuestions]
@@ -63,7 +71,10 @@ const SecurityVerify = () => {
     setLoading(true)
     try {
       await userApi.securityVerify(questions)
-      setUser({ ...user, securityVerified: true })
+      const newSecurityQuestions = questions.map(q => ({ question: q.question }))
+      setUser({ ...user, securityVerified: true, securityQuestions: newSecurityQuestions })
+      setSecurityQuestions(newSecurityQuestions)
+      setVerifyAnswers(new Array(newSecurityQuestions.length).fill(''))
       showToast('安全验证设置成功')
       setStep('verify')
     } catch (error) {
@@ -76,8 +87,9 @@ const SecurityVerify = () => {
   const handleVerify = async (e) => {
     e.preventDefault()
     
-    for (let i = 0; i < 3; i++) {
-      if (!verifyAnswers[i].trim()) {
+    const questionCount = securityQuestions.length
+    for (let i = 0; i < questionCount; i++) {
+      if (!verifyAnswers[i] || !verifyAnswers[i].trim()) {
         showToast(`请输入第${i + 1}个问题的答案`, 'error')
         return
       }
@@ -205,37 +217,50 @@ const SecurityVerify = () => {
                   </span>
                 </div>
 
-                <form onSubmit={handleVerify}>
-                  {user?.securityQuestions?.map((q, index) => (
-                    <div key={index} style={{ marginBottom: '20px' }}>
-                      <label className="form-label">{q.question}</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="请输入答案"
-                        value={verifyAnswers[index]}
-                        onChange={(e) => handleVerifyAnswerChange(index, e.target.value)}
-                      />
-                    </div>
-                  ))}
-                  
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={loading}
-                    style={{ marginBottom: '16px' }}
-                  >
-                    {loading ? <span className="loading"></span> : '验证'}
-                  </button>
+                {securityQuestions.length > 0 ? (
+                  <form onSubmit={handleVerify}>
+                    {securityQuestions.map((q, index) => (
+                      <div key={index} style={{ marginBottom: '20px' }}>
+                        <label className="form-label">{q.question}</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="请输入答案"
+                          value={verifyAnswers[index] || ''}
+                          onChange={(e) => handleVerifyAnswerChange(index, e.target.value)}
+                        />
+                      </div>
+                    ))}
+                    
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={loading}
+                      style={{ marginBottom: '16px' }}
+                    >
+                      {loading ? <span className="loading"></span> : '验证'}
+                    </button>
 
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={() => setStep('setup')}
-                  >
-                    重新设置
-                  </button>
-                </form>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setStep('setup')}
+                    >
+                      重新设置
+                    </button>
+                  </form>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <p style={{ color: '#666', marginBottom: '16px' }}>安全问题加载中...</p>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => setStep('setup')}
+                    >
+                      重新设置
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

@@ -12,12 +12,12 @@ import {
 import {
   EnvironmentOutlined,
   ReloadOutlined,
-  RiseOutlined,
-  SetOutlined,
-  DropletOutlined,
-  WindOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  CloudOutlined,
+  ThunderboltOutlined,
   EyeOutlined,
-  GaugeOutlined,
+  DashboardOutlined,
   SunOutlined,
   UserOutlined,
   CalendarOutlined,
@@ -225,21 +225,21 @@ export default function HomePage() {
 
           <div className="weather-details-grid">
             <div className="detail-item">
-              <WindOutlined className="detail-icon" />
+              <ThunderboltOutlined className="detail-icon" />
               <div className="detail-content">
                 <span className="detail-label">风力风向</span>
                 <span className="detail-value">{currentWeather?.windDirection} {currentWeather?.windLevel}</span>
               </div>
             </div>
             <div className="detail-item">
-              <DropletOutlined className="detail-icon" />
+              <CloudOutlined className="detail-icon" />
               <div className="detail-content">
                 <span className="detail-label">湿度</span>
                 <span className="detail-value">{currentWeather?.humidity}%</span>
               </div>
             </div>
             <div className="detail-item">
-              <GaugeOutlined className="detail-icon" />
+              <DashboardOutlined className="detail-icon" />
               <div className="detail-content">
                 <span className="detail-label">气压</span>
                 <span className="detail-value">{currentWeather?.pressure} hPa</span>
@@ -260,7 +260,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="detail-item">
-              <WindOutlined className="detail-icon" />
+              <ThunderboltOutlined className="detail-icon" />
               <div className="detail-content">
                 <span className="detail-label">风速</span>
                 <span className="detail-value">{currentWeather?.windSpeed} m/s</span>
@@ -270,12 +270,12 @@ export default function HomePage() {
 
           <div className="sunrise-sunset">
             <div className="sun-item">
-              <RiseOutlined className="sun-icon" />
+              <ArrowUpOutlined className="sun-icon" />
               <span className="sun-label">日出</span>
               <span className="sun-time">{currentWeather?.sunrise}</span>
             </div>
             <div className="sun-item">
-              <SetOutlined className="sun-icon" />
+              <ArrowDownOutlined className="sun-icon" />
               <span className="sun-label">日落</span>
               <span className="sun-time">{currentWeather?.sunset}</span>
             </div>
@@ -325,10 +325,10 @@ export default function HomePage() {
                       <span className="day-low">{day.lowTemp}°</span>
                     </div>
                     <div className="day-wind">
-                      <WindOutlined /> {day.dayWindDirection} {day.dayWindSpeed}级
+                      <ThunderboltOutlined /> {day.dayWindDirection} {day.dayWindSpeed}级
                     </div>
                     <div className="day-precipitation">
-                      <DropletOutlined /> {day.precipitation}mm
+                      <CloudOutlined /> {day.precipitation}mm
                     </div>
                   </div>
                 ))}
@@ -344,10 +344,10 @@ export default function HomePage() {
                     <div className="hour-temp">{hour.temperature}°</div>
                     <div className="hour-weather">{hour.weather}</div>
                     <div className="hour-wind">
-                      <WindOutlined /> {hour.windDirection}
+                      <ThunderboltOutlined /> {hour.windDirection}
                     </div>
                     <div className="hour-humidity">
-                      <DropletOutlined /> {hour.humidity}%
+                      <CloudOutlined /> {hour.humidity}%
                     </div>
                   </div>
                 ))}
@@ -509,7 +509,7 @@ export default function HomePage() {
                 <div className="legend-item"><span className="legend-color" style={{ background: '#ff7e00' }} /> 101-150 轻度</div>
                 <div className="legend-item"><span className="legend-color" style={{ background: '#ff0000' }} /> 151-200 中度</div>
                 <div className="legend-item"><span className="legend-color" style={{ background: '#99004c' }} /> 201-300 重度</div>
-                <div className="legend-item"><span className="legend-color" style={{ background: '#7e0023' }} /> >300 严重</div>
+                <div className="legend-item"><span className="legend-color" style={{ background: '#7e0023' }} /> &gt;300 严重</div>
               </div>
             </div>
           </div>
@@ -564,9 +564,9 @@ export default function HomePage() {
                     <span className="history-low">{item.lowTemp}°C</span>
                   </div>
                   <div className="history-details">
-                    <span><WindOutlined /> {item.windDirection} {item.windSpeed}级</span>
-                    <span><DropletOutlined /> 湿度 {item.humidity}%</span>
-                    <span><DropletOutlined /> 降水 {item.precipitation}mm</span>
+                    <span><ThunderboltOutlined /> {item.windDirection} {item.windSpeed}级</span>
+                    <span><CloudOutlined /> 湿度 {item.humidity}%</span>
+                    <span><CloudOutlined /> 降水 {item.precipitation}mm</span>
                   </div>
                 </Card>
               ))}

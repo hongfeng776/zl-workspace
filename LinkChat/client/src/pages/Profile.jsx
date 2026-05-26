@@ -18,11 +18,13 @@ const Profile = () => {
   const [bindCountdown, setBindCountdown] = useState(0)
   const [bindLoading, setBindLoading] = useState(false)
   const [bindCodeLoading, setBindCodeLoading] = useState(false)
+  const [receivedBindCode, setReceivedBindCode] = useState('')
   
   const [setPasswordPhone, setSetPasswordPhone] = useState('')
   const [setPasswordCode, setSetPasswordCode] = useState('')
   const [setPasswordCountdown, setSetPasswordCountdown] = useState(0)
   const [setPasswordCodeLoading, setSetPasswordCodeLoading] = useState(false)
+  const [receivedSetPasswordCode, setReceivedSetPasswordCode] = useState('')
   
   const navigate = useNavigate()
   const { showToast, ToastComponent } = useToast()
@@ -32,6 +34,13 @@ const Profile = () => {
       setSetPasswordPhone(user.phone)
     }
   }, [user])
+
+  useEffect(() => {
+    if (user?.thirdPartyLogin && !user?.phone && activeTab === 'password') {
+      setActiveTab('profile')
+      showToast('请先绑定手机号后再设置密码', 'info')
+    }
+  }, [user, activeTab])
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -59,14 +68,22 @@ const Profile = () => {
     }
 
     setBindCodeLoading(true)
+    setReceivedBindCode('')
     try {
-      await authApi.sendCode(bindPhone, 'bind_phone')
-      showToast('验证码发送成功')
+      const response = await authApi.sendCode(bindPhone, 'bind_phone')
+      const code = response.data?.code
+      if (code) {
+        setReceivedBindCode(code)
+        showToast(`验证码已发送：${code}`, 'success')
+      } else {
+        showToast('验证码发送成功，请注意查收短信')
+      }
       setBindCountdown(60)
       const timer = setInterval(() => {
         setBindCountdown(prev => {
           if (prev <= 1) {
             clearInterval(timer)
+            setReceivedBindCode('')
             return 0
           }
           return prev - 1
@@ -99,6 +116,7 @@ const Profile = () => {
       showToast('手机号绑定成功')
       setBindPhone('')
       setBindCode('')
+      setReceivedBindCode('')
     } catch (error) {
       showToast(error.response?.data?.message || '绑定失败', 'error')
     } finally {
@@ -113,14 +131,23 @@ const Profile = () => {
     }
 
     setSetPasswordCodeLoading(true)
+    setReceivedSetPasswordCode('')
     try {
-      await authApi.sendCode(setPasswordPhone, 'set_password')
-      showToast('验证码发送成功')
+      const codeType = user?.hasPassword ? 'change_password' : 'set_password'
+      const response = await authApi.sendCode(setPasswordPhone, codeType)
+      const code = response.data?.code
+      if (code) {
+        setReceivedSetPasswordCode(code)
+        showToast(`验证码已发送：${code}`, 'success')
+      } else {
+        showToast('验证码发送成功，请注意查收短信')
+      }
       setSetPasswordCountdown(60)
       const timer = setInterval(() => {
         setSetPasswordCountdown(prev => {
           if (prev <= 1) {
             clearInterval(timer)
+            setReceivedSetPasswordCode('')
             return 0
           }
           return prev - 1
@@ -179,6 +206,7 @@ const Profile = () => {
       setNewPassword('')
       setConfirmPassword('')
       setSetPasswordCode('')
+      setReceivedSetPasswordCode('')
       
       const userInfoResponse = await authApi.getUserInfo()
       setUser(userInfoResponse.data.user)
@@ -192,6 +220,11 @@ const Profile = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
   }
 
   return (
@@ -223,9 +256,24 @@ const Profile = () => {
             textDecoration: 'none'
           }}>乐聊</Link>
           
-          <Link to="/" className="link" style={{ fontSize: '14px' }}>
-            返回首页
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Link to="/" className="link" style={{ fontSize: '14px' }}>
+              返回首页
+            </Link>
+            <button 
+              onClick={handleLogout}
+              style={{ 
+                fontSize: '14px', 
+                color: '#ff4757', 
+                background: 'none', 
+                border: 'none', 
+                cursor: 'pointer',
+                padding: 0
+              }}
+            >
+              退出登录
+            </button>
+          </div>
         </div>
       </header>
 
@@ -263,7 +311,13 @@ const Profile = () => {
               个人资料
             </button>
             <button
-              onClick={() => setActiveTab('password')}
+              onClick={() => {
+                if (user?.thirdPartyLogin && !user?.phone) {
+                  showToast('请先绑定手机号后再设置密码', 'info')
+                  return
+                }
+                setActiveTab('password')
+              }}
               style={{
                 flex: 1,
                 padding: '12px',
@@ -286,25 +340,64 @@ const Profile = () => {
                 <div className="form-group">
                   <label className="form-label">手机号</label>
                   {user?.phone ? (
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
-                      disabled
-                      style={{ background: '#f5f5f5' }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                        disabled
+                        style={{ background: '#f5f5f5' }}
+                      />
+                      {user?.thirdPartyLogin && (
+                        <span style={{ 
+                          position: 'absolute', 
+                          right: '12px', 
+                          top: '50%', 
+                          transform: 'translateY(-50%)',
+                          fontSize: '12px',
+                          color: '#52c41a',
+                          background: '#f6ffed',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #b7eb8f'
+                        }}>
+                          已绑定
+                        </span>
+                      )}
+                    </div>
                   ) : (
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '14px' }}>未绑定</span>
+                    <div>
+                      <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#ff4d4f', fontSize: '14px' }}>未绑定</span>
+                        {user?.thirdPartyLogin && (
+                          <span style={{ 
+                            fontSize: '12px',
+                            color: '#faad14',
+                            background: '#fffbe6',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            border: '1px solid #ffe58f'
+                          }}>
+                            第三方登录
+                          </span>
+                        )}
+                      </div>
                       <div style={{ 
                         padding: '16px', 
-                        background: '#fff8e6', 
+                        background: user?.thirdPartyLogin ? '#e6f7ff' : '#fff8e6', 
                         borderRadius: '8px', 
                         marginTop: '8px',
-                        border: '1px solid #ffe58f'
+                        border: `1px solid ${user?.thirdPartyLogin ? '#91d5ff' : '#ffe58f'}`
                       }}>
-                        <p style={{ color: '#ad6800', fontSize: '13px', margin: '0 0 12px 0' }}>
-                          为了您的账号安全，请绑定手机号
+                        <p style={{ 
+                          color: user?.thirdPartyLogin ? '#0050b3' : '#ad6800', 
+                          fontSize: '13px', 
+                          margin: '0 0 12px 0' 
+                        }}>
+                          {user?.thirdPartyLogin 
+                            ? '您使用的是第三方账号登录，绑定手机号后可使用手机号登录和找回密码'
+                            : '为了您的账号安全，请绑定手机号'
+                          }
                         </p>
                         <div className="form-group" style={{ marginBottom: '12px' }}>
                           <input
@@ -335,6 +428,19 @@ const Profile = () => {
                               {bindCodeLoading ? '发送中...' : bindCountdown > 0 ? `${bindCountdown}s` : '获取验证码'}
                             </button>
                           </div>
+                          {receivedBindCode && (
+                            <div style={{ 
+                              marginTop: '8px', 
+                              padding: '6px 10px', 
+                              background: '#e6f7ff', 
+                              borderRadius: '4px',
+                              border: '1px solid #91d5ff',
+                              fontSize: '12px',
+                              color: '#0050b3'
+                            }}>
+                              开发环境验证码：<strong>{receivedBindCode}</strong>
+                            </div>
+                          )}
                         </div>
                         <button 
                           type="button" 
@@ -360,6 +466,29 @@ const Profile = () => {
                     onChange={(e) => setNickname(e.target.value)}
                     maxLength={20}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">账号类型</label>
+                  <div style={{ 
+                    padding: '14px 16px',
+                    background: '#f5f5f5',
+                    borderRadius: '8px'
+                  }}>
+                    {user?.thirdPartyLogin ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>🔗</span>
+                        <span style={{ color: '#1890ff' }}>
+                          第三方账号登录 ({user?.wechatId ? '微信' : 'QQ'})
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>📱</span>
+                        <span style={{ color: '#52c41a' }}>手机号注册</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -437,7 +566,10 @@ const Profile = () => {
                       border: '1px solid #91d5ff'
                     }}>
                       <p style={{ color: '#0050b3', fontSize: '13px', margin: 0 }}>
-                        您的账号还未设置密码，请通过手机验证码设置登录密码
+                        {user?.thirdPartyLogin 
+                          ? '您的第三方账号还未设置密码，请通过手机验证码设置登录密码'
+                          : '您的账号还未设置密码，请通过手机验证码设置登录密码'
+                        }
                       </p>
                     </div>
                     <div className="form-group">
@@ -470,6 +602,19 @@ const Profile = () => {
                           {setPasswordCodeLoading ? '发送中...' : setPasswordCountdown > 0 ? `${setPasswordCountdown}s` : '获取验证码'}
                         </button>
                       </div>
+                      {receivedSetPasswordCode && (
+                        <div style={{ 
+                          marginTop: '8px', 
+                          padding: '6px 10px', 
+                          background: '#e6f7ff', 
+                          borderRadius: '4px',
+                          border: '1px solid #91d5ff',
+                          fontSize: '12px',
+                          color: '#0050b3'
+                        }}>
+                          开发环境验证码：<strong>{receivedSetPasswordCode}</strong>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
