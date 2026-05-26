@@ -1,0 +1,215 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+}
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  padding: 40px 36px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-header h1 {
+  font-size: 28px;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+.auth-header p {
+  color: #888;
+  font-size: 14px;
+}
+
+.social-login-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+  text-align: center;
+}
+
+.social-login-section .section-title {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 16px;
+}
+
+.social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.social-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  font-size: 20px;
+  color: #fff;
+}
+
+.social-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.social-btn.wechat { background: #07c160; }
+.social-btn.qq { background: #12b7f5; }
+.social-btn.weibo { background: #e6162d; }
+
+.profile-container {
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.profile-card {
+  max-width: 800px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.profile-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 40px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: #fff;
+}
+
+.profile-header .avatar-large {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: bold;
+  color: #1890ff;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.profile-header .avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-header .user-info h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.profile-header .user-info p {
+  margin: 0;
+  opacity: 0.85;
+  font-size: 14px;
+}
+
+.profile-content {
+  padding: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.binding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.binding-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.binding-item:hover {
+  background: #f0f0f0;
+}
+
+.binding-item .binding-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.binding-item .binding-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+}
+
+.binding-icon.wechat { background: #07c160; }
+.binding-icon.qq { background: #12b7f5; }
+.binding-icon.weibo { background: #e6162d; }
+
+.binding-item .binding-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.binding-item .binding-status {
+  font-size: 13px;
+  color: #999;
+  margin-top: 2px;
+}

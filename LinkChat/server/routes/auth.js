@@ -4,8 +4,11 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
 const auth = require('../middleware/auth');
+const dbCheck = require('../middleware/dbCheck');
 
 const router = express.Router();
+
+router.use(dbCheck);
 
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();

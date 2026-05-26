@@ -3,8 +3,12 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
 const auth = require('../middleware/auth');
+const dbCheck = require('../middleware/dbCheck');
 
 const router = express.Router();
+
+router.use(auth);
+router.use(dbCheck);
 
 router.post('/delete-account', auth, [
   body('code').isLength({ min: 6, max: 6 }).withMessage('验证码格式不正确')
