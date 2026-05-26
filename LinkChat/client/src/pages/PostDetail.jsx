@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { feedApi } from '../utils/api'
 import { useToast } from '../components/Toast'
@@ -11,6 +11,7 @@ const PostDetail = () => {
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
+  const hasViewedRef = useRef(false)
 
   const formatTime = (dateString) => {
     const date = new Date(dateString)
@@ -25,9 +26,12 @@ const PostDetail = () => {
 
   useEffect(() => {
     const fetchPostDetail = async () => {
+      if (hasViewedRef.current) return
+      
       try {
         const response = await feedApi.getPostDetail(id)
         setPost(response.data.data)
+        hasViewedRef.current = true
       } catch (error) {
         console.error('获取详情失败:', error)
         showToast('加载失败，请重试')
@@ -37,7 +41,7 @@ const PostDetail = () => {
     }
 
     fetchPostDetail()
-  }, [id, showToast])
+  }, [id])
 
   const handleBack = () => {
     navigate(-1)
@@ -180,19 +184,23 @@ const PostDetail = () => {
         <button
           onClick={handleBack}
           style={{
-            background: 'none',
-            border: 'none',
+            background: 'rgba(0,0,0,0.05)',
+            border: '1px solid rgba(0,0,0,0.1)',
             cursor: 'pointer',
-            fontSize: '20px',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            transition: 'background 0.2s'
+            fontSize: '14px',
+            padding: '6px 14px',
+            borderRadius: '16px',
+            color: '#333',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.2s ease'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f0f0f0'
+            e.currentTarget.style.background = 'rgba(0,0,0,0.1)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.background = 'rgba(0,0,0,0.05)'
           }}
         >
           ← 返回

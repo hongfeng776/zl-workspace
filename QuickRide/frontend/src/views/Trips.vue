@@ -187,6 +187,14 @@ function goToDetail(tripId: number) {
   background: white;
   border-radius: 12px;
   padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.trip-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
 }
 
 .trip-route {
@@ -236,7 +244,16 @@ function goToDetail(tripId: number) {
 
 .trip-left {
   display: flex;
-  gap: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.trip-car {
+  font-size: 12px;
+  color: #667eea;
+  background: #ecf5ff;
+  padding: 2px 8px;
+  border-radius: 10px;
 }
 
 .trip-date,
@@ -255,5 +272,13 @@ function goToDetail(tripId: number) {
   font-size: 18px;
   font-weight: 600;
   color: #f56c6c;
+}
+
+.trip-arrow {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #ccc;
 }
 </style>

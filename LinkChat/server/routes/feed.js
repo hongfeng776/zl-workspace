@@ -255,8 +255,11 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: '内容不存在' });
     }
 
-    post.views += 1;
-    await dbAdapter.save(post);
+    const incView = req.query.incView !== 'false';
+    if (incView) {
+      post.views += 1;
+      await dbAdapter.save(post);
+    }
 
     res.json({ data: post });
   } catch (error) {

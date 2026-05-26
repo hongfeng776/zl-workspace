@@ -123,6 +123,21 @@ const windDirections = ['北风', '东北风', '东风', '东南风', '南风', 
 const CACHE_TTL = 5 * 60 * 1000;
 const weatherCache: Record<string, { data: any; timestamp: number }> = {};
 
+function getDaySeed(): number {
+  const today = new Date();
+  return today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+}
+
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+const dayRandom = seededRandom(getDaySeed());
+
 function getCachedOrGenerate(key: string, generator: () => any): any {
   const now = Date.now();
   const cached = weatherCache[key];
@@ -142,11 +157,11 @@ export function clearCache() {
 
 function getRandomWeather(): string {
   const weathers = ['sunny', 'cloudy', 'overcast', 'lightRain', 'moderateRain', 'lightSnow', 'fog', 'haze'];
-  return weathers[Math.floor(Math.random() * weathers.length)];
+  return weathers[Math.floor(dayRandom() * weathers.length)];
 }
 
 function getWindDirection(): string {
-  return windDirections[Math.floor(Math.random() * windDirections.length)];
+  return windDirections[Math.floor(dayRandom() * windDirections.length)];
 }
 
 function getWindLevel(speed: number): string {
@@ -185,23 +200,23 @@ function getDayOfWeek(date: Date): string {
 export function getCurrentWeather(city: string = '北京市', province: string = '北京市'): CurrentWeather {
   return getCachedOrGenerate(`current_${city}`, () => {
     const now = new Date();
-    const baseTemp = 15 + Math.random() * 20;
+    const baseTemp = 15 + dayRandom() * 20;
     const weather = getRandomWeather();
 
     return {
       city,
       province,
       temperature: Math.round(baseTemp),
-      feelsLike: Math.round(baseTemp + (Math.random() - 0.5) * 5),
+      feelsLike: Math.round(baseTemp + (dayRandom() - 0.5) * 5),
       weather: weatherNames[weather],
       weatherIcon: weatherIcons[weather],
-      humidity: Math.round(30 + Math.random() * 50),
+      humidity: Math.round(30 + dayRandom() * 50),
       windDirection: getWindDirection(),
-      windSpeed: Math.round(2 + Math.random() * 15),
-      windLevel: getWindLevel(2 + Math.random() * 15),
-      pressure: Math.round(1000 + Math.random() * 30),
-      visibility: Math.round(5 + Math.random() * 20),
-      uvIndex: Math.round(Math.random() * 11),
+      windSpeed: Math.round(2 + dayRandom() * 15),
+      windLevel: getWindLevel(2 + dayRandom() * 15),
+      pressure: Math.round(1000 + dayRandom() * 30),
+      visibility: Math.round(5 + dayRandom() * 20),
+      uvIndex: Math.round(dayRandom() * 11),
       sunrise: '05:30',
       sunset: '19:15',
       updateTime: now.toLocaleString('zh-CN'),
@@ -213,21 +228,21 @@ export function getHourlyForecast(): HourlyForecast[] {
   return getCachedOrGenerate('hourly', () => {
     const forecast: HourlyForecast[] = [];
     const now = new Date();
-    const baseTemp = 15 + Math.random() * 10;
+    const baseTemp = 15 + dayRandom() * 10;
 
     for (let i = 0; i < 24; i++) {
       const time = new Date(now.getTime() + i * 60 * 60 * 1000);
       const hourVariation = Math.sin(((time.getHours() - 6) / 24) * Math.PI * 2) * 8;
-      const weather = i >= 6 && i <= 18 ? getRandomWeather() : (Math.random() > 0.7 ? 'cloudy' : 'clear');
+      const weather = i >= 6 && i <= 18 ? getRandomWeather() : (dayRandom() > 0.7 ? 'cloudy' : 'clear');
 
       forecast.push({
         time: `${String(time.getHours()).padStart(2, '0')}:00`,
-        temperature: Math.round(baseTemp + hourVariation + (Math.random() - 0.5) * 2),
+        temperature: Math.round(baseTemp + hourVariation + (dayRandom() - 0.5) * 2),
         weather: weatherNames[weather] || '晴',
         weatherIcon: weatherIcons[weather] || '\u2600\uFE0F',
         windDirection: getWindDirection(),
-        windSpeed: Math.round(1 + Math.random() * 12),
-        humidity: Math.round(40 + Math.random() * 40),
+        windSpeed: Math.round(1 + dayRandom() * 12),
+        humidity: Math.round(40 + dayRandom() * 40),
       });
     }
     return forecast;
@@ -238,13 +253,13 @@ export function getDailyForecast(): DailyForecast[] {
   return getCachedOrGenerate('daily', () => {
     const forecast: DailyForecast[] = [];
     const now = new Date();
-    const baseTemp = 15 + Math.random() * 10;
+    const baseTemp = 15 + dayRandom() * 10;
 
     for (let i = 0; i < 15; i++) {
       const date = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
       const dayVariation = Math.sin((i / 15) * Math.PI) * 5;
       const dayWeather = getRandomWeather();
-      const nightWeather = Math.random() > 0.5 ? dayWeather : 'clear';
+      const nightWeather = dayRandom() > 0.5 ? dayWeather : 'clear';
 
       forecast.push({
         date: formatDate(date),
@@ -253,14 +268,14 @@ export function getDailyForecast(): DailyForecast[] {
         nightWeather: weatherNames[nightWeather] || '晴',
         dayWeatherIcon: weatherIcons[dayWeather],
         nightWeatherIcon: weatherIcons[nightWeather] || '\uD83C\uDF19',
-        highTemp: Math.round(baseTemp + dayVariation + 5 + Math.random() * 3),
-        lowTemp: Math.round(baseTemp + dayVariation - 5 + Math.random() * 3),
+        highTemp: Math.round(baseTemp + dayVariation + 5 + dayRandom() * 3),
+        lowTemp: Math.round(baseTemp + dayVariation - 5 + dayRandom() * 3),
         dayWindDirection: getWindDirection(),
         nightWindDirection: getWindDirection(),
-        dayWindSpeed: Math.round(2 + Math.random() * 10),
-        nightWindSpeed: Math.round(1 + Math.random() * 8),
-        precipitation: Math.round(Math.random() * 100 * 10) / 10,
-        humidity: Math.round(40 + Math.random() * 40),
+        dayWindSpeed: Math.round(2 + dayRandom() * 10),
+        nightWindSpeed: Math.round(1 + dayRandom() * 8),
+        precipitation: Math.round(dayRandom() * 100 * 10) / 10,
+        humidity: Math.round(40 + dayRandom() * 40),
         sunrise: '05:30',
         sunset: '19:15',
       });
@@ -271,22 +286,22 @@ export function getDailyForecast(): DailyForecast[] {
 
 export function getAirQuality(): AirQuality {
   return getCachedOrGenerate('air', () => {
-    const aqi = Math.round(20 + Math.random() * 180);
+    const aqi = Math.round(20 + dayRandom() * 180);
     const aqiInfo = getAqiLevel(aqi);
 
     return {
       aqi,
       aqiLevel: aqiInfo.level,
       aqiColor: aqiInfo.color,
-      pm25: Math.round(10 + Math.random() * 150),
-      pm10: Math.round(20 + Math.random() * 200),
-      so2: Math.round(5 + Math.random() * 50),
-      no2: Math.round(10 + Math.random() * 80),
-      co: Math.round((0.5 + Math.random() * 2) * 10) / 10,
-      o3: Math.round(30 + Math.random() * 120),
-      nationalRank: Math.round(1 + Math.random() * 300),
+      pm25: Math.round(10 + dayRandom() * 150),
+      pm10: Math.round(20 + dayRandom() * 200),
+      so2: Math.round(5 + dayRandom() * 50),
+      no2: Math.round(10 + dayRandom() * 80),
+      co: Math.round((0.5 + dayRandom() * 2) * 10) / 10,
+      o3: Math.round(30 + dayRandom() * 120),
+      nationalRank: Math.round(1 + dayRandom() * 300),
       totalCities: 337,
-      primaryPollutant: aqi > 100 ? (Math.random() > 0.5 ? 'PM2.5' : '臭氧') : '无',
+      primaryPollutant: aqi > 100 ? (dayRandom() > 0.5 ? 'PM2.5' : '臭氧') : '无',
       healthAdvice: aqi <= 50
         ? '空气质量令人满意，基本无空气污染'
         : aqi <= 100
@@ -326,7 +341,7 @@ export function getLifeIndices(): LifeIndex[] {
     };
 
     return indices.map(index => {
-      const levelIndex = Math.floor(Math.random() * 3);
+      const levelIndex = Math.floor(dayRandom() * 3);
       return {
         ...index,
         level: levels[levelIndex],
@@ -341,7 +356,7 @@ export function getHistoryWeather(startDate: string, endDate: string): HistoryWe
     const history: HistoryWeather[] = [];
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const baseTemp = 15 + Math.random() * 10;
+    const baseTemp = 15 + dayRandom() * 10;
 
     const current = new Date(start);
     let dayOffset = 0;
@@ -351,14 +366,14 @@ export function getHistoryWeather(startDate: string, endDate: string): HistoryWe
 
       history.push({
         date: formatDate(current),
-        highTemp: Math.round(baseTemp + dayVariation + 5 + Math.random() * 3),
-        lowTemp: Math.round(baseTemp + dayVariation - 5 + Math.random() * 3),
+        highTemp: Math.round(baseTemp + dayVariation + 5 + dayRandom() * 3),
+        lowTemp: Math.round(baseTemp + dayVariation - 5 + dayRandom() * 3),
         weather: weatherNames[weather],
         weatherIcon: weatherIcons[weather],
         windDirection: getWindDirection(),
-        windSpeed: Math.round(2 + Math.random() * 10),
-        humidity: Math.round(40 + Math.random() * 40),
-        precipitation: Math.round(Math.random() * 50 * 10) / 10,
+        windSpeed: Math.round(2 + dayRandom() * 10),
+        humidity: Math.round(40 + dayRandom() * 40),
+        precipitation: Math.round(dayRandom() * 50 * 10) / 10,
       });
 
       current.setDate(current.getDate() + 1);
