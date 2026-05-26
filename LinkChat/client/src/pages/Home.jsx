@@ -78,6 +78,40 @@ const Home = () => {
 
       <main style={{ flex: 1, padding: '40px 24px' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          {!user?.phone && (
+            <div style={{ 
+              marginBottom: '24px',
+              padding: '16px 20px',
+              background: 'linear-gradient(135deg, #fff8e6 0%, #fffbe6 100%)',
+              borderRadius: '12px',
+              border: '1px solid #ffe58f',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <h3 style={{ color: '#ad6800', fontSize: '16px', fontWeight: '600', margin: '0 0 4px 0' }}>
+                  🔔 账号安全提醒
+                </h3>
+                <p style={{ color: '#ad6800', fontSize: '13px', margin: 0 }}>
+                  您的账号尚未绑定手机号，为了账号安全，请尽快绑定
+                </p>
+              </div>
+              <Link 
+                to="/profile" 
+                className="btn btn-primary"
+                style={{ 
+                  padding: '10px 20px', 
+                  fontSize: '14px',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                去绑定
+              </Link>
+            </div>
+          )}
+
           <div className="card" style={{ marginBottom: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{

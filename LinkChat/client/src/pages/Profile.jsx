@@ -136,6 +136,12 @@ const Profile = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault()
     
+    if (!user?.phone) {
+      showToast('请先绑定手机号后再设置密码', 'error')
+      setTimeout(() => setActiveTab('profile'), 1500)
+      return
+    }
+    
     if (!newPassword || newPassword.length < 6) {
       showToast('新密码长度不能少于6位', 'error')
       return
@@ -177,7 +183,12 @@ const Profile = () => {
       const userInfoResponse = await authApi.getUserInfo()
       setUser(userInfoResponse.data.user)
     } catch (error) {
-      showToast(error.response?.data?.message || '修改失败', 'error')
+      const message = error.response?.data?.message || '修改失败'
+      const needBindPhone = error.response?.data?.needBindPhone
+      showToast(message, 'error')
+      if (needBindPhone) {
+        setTimeout(() => setActiveTab('profile'), 1500)
+      }
     } finally {
       setLoading(false)
     }
@@ -382,15 +393,28 @@ const Profile = () => {
               <form onSubmit={handleChangePassword}>
                 {!user?.phone ? (
                   <div style={{ 
-                    padding: '16px', 
+                    padding: '20px', 
                     background: '#fff8e6', 
-                    borderRadius: '8px', 
+                    borderRadius: '12px', 
                     marginBottom: '16px',
-                    border: '1px solid #ffe58f'
+                    border: '1px solid #ffe58f',
+                    textAlign: 'center'
                   }}>
-                    <p style={{ color: '#ad6800', fontSize: '13px', margin: 0 }}>
-                      请先在「个人资料」中绑定手机号，然后再设置密码
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📱</div>
+                    <p style={{ color: '#ad6800', fontSize: '15px', margin: '0 0 8px 0', fontWeight: '600' }}>
+                      请先绑定手机号
                     </p>
+                    <p style={{ color: '#8c8c8c', fontSize: '13px', margin: '0 0 16px 0' }}>
+                      为了您的账号安全，需要先绑定手机号才能设置/修改密码
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: '100%' }}
+                      onClick={() => setActiveTab('profile')}
+                    >
+                      立即绑定手机号
+                    </button>
                   </div>
                 ) : user?.hasPassword ? (
                   <div className="form-group">

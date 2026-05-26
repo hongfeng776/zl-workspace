@@ -18,7 +18,7 @@ const generateToken = (userId) => {
 
 router.post('/send-code', [
   body('phone').matches(/^1[3-9]\d{9}$/).withMessage('手机号格式不正确'),
-  body('type').isIn(['register', 'login', 'reset_password', 'delete_account', 'security', 'bind_phone', 'set_password']).withMessage('验证码类型不正确')
+  body('type').isIn(['register', 'login', 'reset_password', 'delete_account', 'security', 'bind_phone', 'set_password', 'change_password']).withMessage('验证码类型不正确')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -46,6 +46,20 @@ router.post('/send-code', [
       const existingUser = await dbAdapter.User.findOne({ phone });
       if (existingUser) {
         return res.status(400).json({ message: '该手机号已被绑定' });
+      }
+    }
+
+    if (type === 'set_password') {
+      const existingUser = await dbAdapter.User.findOne({ phone });
+      if (!existingUser) {
+        return res.status(400).json({ message: '该手机号未注册' });
+      }
+    }
+
+    if (type === 'change_password') {
+      const existingUser = await dbAdapter.User.findOne({ phone });
+      if (!existingUser) {
+        return res.status(400).json({ message: '该手机号未注册' });
       }
     }
 
@@ -316,15 +330,17 @@ router.post('/third-party', [
 
 router.get('/user-info', auth, async (req, res) => {
   try {
+    const user = await dbAdapter.User.findById(req.user._id);
     res.json({
       user: {
-        id: req.user._id,
-        phone: req.user.phone,
-        nickname: req.user.nickname,
-        avatar: req.user.avatar,
-        securityVerified: req.user.securityVerified,
-        hasPassword: !!req.user.password,
-        createdAt: req.user.createdAt
+        id: user._id,
+        phone: user.phone,
+        nickname: user.nickname,
+        avatar: user.avatar,
+        securityVerified: user.securityVerified,
+        hasPassword: !!user.password,
+        createdAt: user.createdAt,
+        thirdPartyLogin: !!(user.wechatId || user.qqId)
       }
     });
   } catch (error) {
@@ -403,6 +419,16 @@ router.post('/set-password', auth, [
   const userId = req.user._id;
 
   try {
+    const user = await dbAdapter.User.findById(userId);
+    
+    if (!user.phone) {
+      return res.status(400).json({ message: '请先绑定手机号后再设置密码', needBindPhone: true });
+    }
+    
+    if (user.phone !== phone) {
+      return res.status(400).json({ message: '手机号与当前账号不匹配' });
+    }
+
     const verification = await dbAdapter.VerificationCode.findOne({
       phone,
       code,
@@ -413,11 +439,6 @@ router.post('/set-password', auth, [
 
     if (!verification) {
       return res.status(400).json({ message: '验证码错误或已过期' });
-    }
-
-    const user = await dbAdapter.User.findById(userId);
-    if (!user.phone || user.phone !== phone) {
-      return res.status(400).json({ message: '手机号与当前账号不匹配' });
     }
 
     user.password = password;

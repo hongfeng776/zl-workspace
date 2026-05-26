@@ -12,6 +12,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false)
   const [codeLoading, setCodeLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [receivedCode, setReceivedCode] = useState('')
   
   const navigate = useNavigate()
   const login = useAuthStore((state) => state.login)
@@ -24,9 +25,15 @@ const Register = () => {
     }
 
     setCodeLoading(true)
+    setReceivedCode('')
     try {
-      await authApi.sendCode(phone, 'register')
-      showToast('验证码发送成功')
+      const response = await authApi.sendCode(phone, 'register')
+      if (response.data.code) {
+        setReceivedCode(response.data.code)
+        showToast(`验证码已发送：${response.data.code}`, 'success')
+      } else {
+        showToast('验证码发送成功，请注意查收短信')
+      }
       setCountdown(60)
       const timer = setInterval(() => {
         setCountdown(prev => {
@@ -140,6 +147,19 @@ const Register = () => {
                 {codeLoading ? '发送中...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
               </button>
             </div>
+            {receivedCode && (
+              <div style={{ 
+                marginTop: '8px', 
+                padding: '8px 12px', 
+                background: '#e6f7ff', 
+                borderRadius: '6px',
+                border: '1px solid #91d5ff',
+                fontSize: '12px',
+                color: '#0050b3'
+              }}>
+                开发环境验证码：<strong>{receivedCode}</strong>
+              </div>
+            )}
           </div>
 
           <div className="form-group">

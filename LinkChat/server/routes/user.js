@@ -129,7 +129,7 @@ router.post('/change-password', [
     const user = await dbAdapter.User.findById(userId);
 
     if (!user.phone) {
-      return res.status(400).json({ message: '请先绑定手机号' });
+      return res.status(400).json({ message: '请先绑定手机号后再设置密码', needBindPhone: true });
     }
 
     if (user.password) {
@@ -147,7 +147,7 @@ router.post('/change-password', [
       }
     } else {
       if (!code || !phone) {
-        return res.status(400).json({ message: '请输入验证码' });
+        return res.status(400).json({ message: '请输入手机号和验证码' });
       }
 
       if (phone !== user.phone) {
@@ -163,11 +163,22 @@ router.post('/change-password', [
       });
 
       if (!verification) {
-        return res.status(400).json({ message: '验证码错误或已过期' });
+        const verification2 = await dbAdapter.VerificationCode.findOne({
+          phone,
+          code,
+          type: 'change_password',
+          used: false,
+          expiresAt: { $gt: new Date() }
+        });
+        if (!verification2) {
+          return res.status(400).json({ message: '验证码错误或已过期，请重新获取' });
+        }
+        verification2.used = true;
+        await dbAdapter.save(verification2);
+      } else {
+        verification.used = true;
+        await dbAdapter.save(verification);
       }
-
-      verification.used = true;
-      await dbAdapter.save(verification);
     }
 
     user.password = newPassword;

@@ -69,8 +69,9 @@ router.post('/send-code', async (req: Request, res: Response) => {
 
     res.json({ 
       message: '验证码发送成功', 
-      code: process.env.NODE_ENV === 'development' ? code : undefined,
-      expiresIn: 300
+      code,
+      expiresIn: 300,
+      isTestEnv: process.env.NODE_ENV !== 'production'
     });
   } catch (error: any) {
     console.error('[验证码] 发送异常:', error);

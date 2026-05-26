@@ -8,6 +8,30 @@
       "type": "register",
       "expires_at": "2026-05-26T06:45:04.950Z",
       "created_at": "2026-05-26T06:40:04.951Z"
+    },
+    {
+      "id": 2,
+      "phone": "15942680025",
+      "code": "1082",
+      "type": "register",
+      "expires_at": "2026-05-26T06:48:14.778Z",
+      "created_at": "2026-05-26T06:43:14.778Z"
+    },
+    {
+      "id": 3,
+      "phone": "13900139000",
+      "code": "2914",
+      "type": "register",
+      "expires_at": "2026-05-26T07:00:00.215Z",
+      "created_at": "2026-05-26T06:55:00.216Z"
+    },
+    {
+      "id": 4,
+      "phone": "13800138001",
+      "code": "7515",
+      "type": "register",
+      "expires_at": "2026-05-26T07:20:00.310Z",
+      "created_at": "2026-05-26T07:15:00.310Z"
     }
   ],
   "trips": [],

@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ProfilePage from './pages/ProfilePage';
+import HomePage from './pages/HomePage';
 import { useAuth } from './contexts/AuthContext';
 import { Spin } from 'antd';
 
@@ -21,6 +22,10 @@ function App() {
 
   return (
     <Routes>
+      <Route
+        path="/"
+        element={<HomePage />}
+      />
       <Route
         path="/login"
         element={
@@ -41,7 +46,7 @@ function App() {
           isAuthenticated ? <ProfilePage /> : <Navigate to="/login" replace />
         }
       />
-      <Route path="*" element={<Navigate to={isAuthenticated ? "/profile" : "/login"} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

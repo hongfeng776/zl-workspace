@@ -29,7 +29,7 @@
                   <el-button
                     :disabled="!canSend || !isValidPhone"
                     :loading="sending"
-                    @click="sendCode"
+                    @click="handleSendCode"
                   >
                     {{ sending ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
                   </el-button>
@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Phone, Key, Lock, Van } from '@element-plus/icons-vue';
@@ -103,7 +103,6 @@ import api from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
-const { countdown, sending, canSend, sendCode: sendSmsCode, verifyCodeFormat } = useSmsCode();
 
 const loginType = ref('code');
 const loading = ref(false);
@@ -118,10 +117,22 @@ const passwordForm = ref({
   password: ''
 });
 
+const codeRef = ref('');
+
+const { countdown, sending, canSend, sendCode, verifyCodeFormat } = useSmsCode({
+  autoFillTarget: codeRef
+});
+
 const isValidPhone = computed(() => /^1[3-9]\d{9}$/.test(codeForm.value.phone));
 
-async function sendCode() {
-  await sendSmsCode(codeForm.value.phone, 'login');
+watch(codeRef, (newCode) => {
+  if (newCode && newCode.length === 4) {
+    codeForm.value.code = newCode;
+  }
+});
+
+async function handleSendCode() {
+  await sendCode(codeForm.value.phone, 'login');
 }
 
 async function handleCodeLogin() {

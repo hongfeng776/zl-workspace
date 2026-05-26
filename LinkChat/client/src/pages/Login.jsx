@@ -88,8 +88,14 @@ const Login = () => {
         avatar: ''
       })
       login(response.data.user, response.data.token)
-      showToast('登录成功')
-      navigate('/')
+      
+      if (!response.data.user.phone) {
+        showToast('登录成功，请先绑定手机号', 'info')
+        navigate('/profile')
+      } else {
+        showToast('登录成功')
+        navigate('/')
+      }
     } catch (error) {
       showToast(error.response?.data?.message || '登录失败', 'error')
     }

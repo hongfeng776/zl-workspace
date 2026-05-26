@@ -27,7 +27,7 @@
               <el-button
                 :disabled="!canSend || !isValidPhone"
                 :loading="sending"
-                @click="sendCode"
+                @click="handleSendCode"
               >
                 {{ sending ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
               </el-button>
@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Phone, Key, Lock, User, Van } from '@element-plus/icons-vue';
@@ -81,7 +81,6 @@ import api from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
-const { countdown, sending, canSend, sendCode: sendSmsCode, verifyCodeFormat } = useSmsCode();
 
 const loading = ref(false);
 
@@ -92,10 +91,22 @@ const form = ref({
   password: ''
 });
 
+const codeRef = ref('');
+
+const { countdown, sending, canSend, sendCode, verifyCodeFormat } = useSmsCode({
+  autoFillTarget: codeRef
+});
+
 const isValidPhone = computed(() => /^1[3-9]\d{9}$/.test(form.value.phone));
 
-async function sendCode() {
-  await sendSmsCode(form.value.phone, 'register');
+watch(codeRef, (newCode) => {
+  if (newCode && newCode.length === 4) {
+    form.value.code = newCode;
+  }
+});
+
+async function handleSendCode() {
+  await sendCode(form.value.phone, 'register');
 }
 
 async function handleRegister() {

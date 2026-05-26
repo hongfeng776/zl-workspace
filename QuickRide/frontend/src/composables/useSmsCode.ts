@@ -1,13 +1,22 @@
-import { ref, computed } from 'vue';
+import { ref, computed, Ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import api from '@/utils/api';
 
-export function useSmsCode() {
+interface UseSmsCodeOptions {
+  autoFillTarget?: Ref<string>;
+  autoFillDelay?: number;
+}
+
+export function useSmsCode(options: UseSmsCodeOptions = {}) {
+  const { autoFillTarget, autoFillDelay = 300 } = options;
+
   const countdown = ref(0);
   const sending = ref(false);
+  const receivedCode = ref('');
   let countdownTimer: number | null = null;
 
   const canSend = computed(() => countdown.value === 0 && !sending.value);
+  const isTestEnv = computed(() => import.meta.env.DEV);
 
   function startCountdown(seconds: number = 60) {
     countdown.value = seconds;
@@ -35,14 +44,14 @@ export function useSmsCode() {
     countdown.value = 0;
   }
 
-  async function sendCode(phone: string, type: 'register' | 'login' | 'reset' = 'register'): Promise<boolean> {
+  async function sendCode(phone: string, type: 'register' | 'login' | 'reset' = 'register'): Promise<string | null> {
     if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
       ElMessage.warning('请输入有效的手机号');
-      return false;
+      return null;
     }
 
     if (!canSend.value) {
-      return false;
+      return null;
     }
 
     sending.value = true;
@@ -51,13 +60,25 @@ export function useSmsCode() {
       const res = await api.post('/auth/send-code', { phone, type });
       
       const code = res.data?.code;
+      
       if (code && code.length === 4) {
-        console.log(`[开发模式] 验证码: ${code}`);
+        receivedCode.value = code;
+        console.log(`[测试环境] 验证码: ${code}`);
+
+        if (autoFillTarget) {
+          setTimeout(() => {
+            autoFillTarget.value = code;
+            ElMessage.success(`验证码已发送，已自动填充: ${code}`);
+          }, autoFillDelay);
+        } else {
+          ElMessage.success(`验证码已发送（测试环境：${code}）`);
+        }
+      } else {
+        ElMessage.success(res.data?.message || '验证码已发送');
       }
 
-      ElMessage.success(res.data?.message || '验证码已发送');
       startCountdown(60);
-      return true;
+      return code || null;
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || '验证码发送失败，请稍后重试';
       
@@ -69,7 +90,7 @@ export function useSmsCode() {
       }
       
       console.error('[验证码] 发送失败:', errorMsg);
-      return false;
+      return null;
     } finally {
       sending.value = false;
     }
@@ -95,6 +116,8 @@ export function useSmsCode() {
     countdown,
     sending,
     canSend,
+    receivedCode,
+    isTestEnv,
     sendCode,
     startCountdown,
     stopCountdown,

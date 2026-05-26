@@ -50,20 +50,32 @@ const memoryStore = {
       return users.find(u => {
         for (const key in query) {
           const queryValue = query[key];
-          if (queryValue && typeof queryValue === 'object') {
+          if (queryValue && typeof queryValue === 'object' && !(queryValue instanceof Date)) {
             if (queryValue.$gt !== undefined) {
-              if (u[key] <= queryValue.$gt) return false;
+              const compareValue = queryValue.$gt instanceof Date ? queryValue.$gt.getTime() : queryValue.$gt;
+              const fieldValue = u[key] instanceof Date ? u[key].getTime() : u[key];
+              if (fieldValue <= compareValue) return false;
             } else if (queryValue.$lt !== undefined) {
-              if (u[key] >= queryValue.$lt) return false;
+              const compareValue = queryValue.$lt instanceof Date ? queryValue.$lt.getTime() : queryValue.$lt;
+              const fieldValue = u[key] instanceof Date ? u[key].getTime() : u[key];
+              if (fieldValue >= compareValue) return false;
             } else if (queryValue.$gte !== undefined) {
-              if (u[key] < queryValue.$gte) return false;
+              const compareValue = queryValue.$gte instanceof Date ? queryValue.$gte.getTime() : queryValue.$gte;
+              const fieldValue = u[key] instanceof Date ? u[key].getTime() : u[key];
+              if (fieldValue < compareValue) return false;
             } else if (queryValue.$lte !== undefined) {
-              if (u[key] > queryValue.$lte) return false;
+              const compareValue = queryValue.$lte instanceof Date ? queryValue.$lte.getTime() : queryValue.$lte;
+              const fieldValue = u[key] instanceof Date ? u[key].getTime() : u[key];
+              if (fieldValue > compareValue) return false;
             } else {
               return false;
             }
           } else if (u[key] !== queryValue) {
-            return false;
+            if (u[key] instanceof Date && queryValue instanceof Date) {
+              if (u[key].getTime() !== queryValue.getTime()) return false;
+            } else {
+              return false;
+            }
           }
         }
         return true;
@@ -100,22 +112,34 @@ const memoryStore = {
       return verificationCodes.find(c => {
         for (const key in query) {
           const queryValue = query[key];
-          if (queryValue && typeof queryValue === 'object') {
+          if (queryValue && typeof queryValue === 'object' && !(queryValue instanceof Date)) {
             if (queryValue.$gt !== undefined) {
-              if (c[key] <= queryValue.$gt) return false;
+              const compareValue = queryValue.$gt instanceof Date ? queryValue.$gt.getTime() : queryValue.$gt;
+              const fieldValue = c[key] instanceof Date ? c[key].getTime() : c[key];
+              if (fieldValue <= compareValue) return false;
             } else if (queryValue.$lt !== undefined) {
-              if (c[key] >= queryValue.$lt) return false;
+              const compareValue = queryValue.$lt instanceof Date ? queryValue.$lt.getTime() : queryValue.$lt;
+              const fieldValue = c[key] instanceof Date ? c[key].getTime() : c[key];
+              if (fieldValue >= compareValue) return false;
             } else if (queryValue.$gte !== undefined) {
-              if (c[key] < queryValue.$gte) return false;
+              const compareValue = queryValue.$gte instanceof Date ? queryValue.$gte.getTime() : queryValue.$gte;
+              const fieldValue = c[key] instanceof Date ? c[key].getTime() : c[key];
+              if (fieldValue < compareValue) return false;
             } else if (queryValue.$lte !== undefined) {
-              if (c[key] > queryValue.$lte) return false;
+              const compareValue = queryValue.$lte instanceof Date ? queryValue.$lte.getTime() : queryValue.$lte;
+              const fieldValue = c[key] instanceof Date ? c[key].getTime() : c[key];
+              if (fieldValue > compareValue) return false;
             } else {
               return false;
             }
-          } else if (key === 'expiresAt') {
+          } else if (key === 'expiresAt' && !queryValue) {
             if (c.expiresAt <= now) return false;
           } else if (c[key] !== queryValue) {
-            return false;
+            if (c[key] instanceof Date && queryValue instanceof Date) {
+              if (c[key].getTime() !== queryValue.getTime()) return false;
+            } else {
+              return false;
+            }
           }
         }
         return true;
