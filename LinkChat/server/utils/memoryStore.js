@@ -49,7 +49,22 @@ const memoryStore = {
     findOne: async (query) => {
       return users.find(u => {
         for (const key in query) {
-          if (u[key] !== query[key]) return false;
+          const queryValue = query[key];
+          if (queryValue && typeof queryValue === 'object') {
+            if (queryValue.$gt !== undefined) {
+              if (u[key] <= queryValue.$gt) return false;
+            } else if (queryValue.$lt !== undefined) {
+              if (u[key] >= queryValue.$lt) return false;
+            } else if (queryValue.$gte !== undefined) {
+              if (u[key] < queryValue.$gte) return false;
+            } else if (queryValue.$lte !== undefined) {
+              if (u[key] > queryValue.$lte) return false;
+            } else {
+              return false;
+            }
+          } else if (u[key] !== queryValue) {
+            return false;
+          }
         }
         return true;
       }) || null;
@@ -84,9 +99,22 @@ const memoryStore = {
       const now = new Date();
       return verificationCodes.find(c => {
         for (const key in query) {
-          if (key === 'expiresAt') {
+          const queryValue = query[key];
+          if (queryValue && typeof queryValue === 'object') {
+            if (queryValue.$gt !== undefined) {
+              if (c[key] <= queryValue.$gt) return false;
+            } else if (queryValue.$lt !== undefined) {
+              if (c[key] >= queryValue.$lt) return false;
+            } else if (queryValue.$gte !== undefined) {
+              if (c[key] < queryValue.$gte) return false;
+            } else if (queryValue.$lte !== undefined) {
+              if (c[key] > queryValue.$lte) return false;
+            } else {
+              return false;
+            }
+          } else if (key === 'expiresAt') {
             if (c.expiresAt <= now) return false;
-          } else if (c[key] !== query[key]) {
+          } else if (c[key] !== queryValue) {
             return false;
           }
         }

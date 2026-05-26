@@ -27,10 +27,11 @@
               >
                 <template #append>
                   <el-button
-                    :disabled="countdown > 0 || !isValidPhone"
+                    :disabled="!canSend || !isValidPhone"
+                    :loading="sending"
                     @click="sendCode"
                   >
-                    {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                    {{ sending ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
                   </el-button>
                 </template>
               </el-input>
@@ -97,14 +98,15 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Phone, Key, Lock, Van } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
+import { useSmsCode } from '@/composables/useSmsCode';
 import api from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
+const { countdown, sending, canSend, sendCode: sendSmsCode, verifyCodeFormat } = useSmsCode();
 
 const loginType = ref('code');
 const loading = ref(false);
-const countdown = ref(0);
 
 const codeForm = ref({
   phone: '',
@@ -118,50 +120,34 @@ const passwordForm = ref({
 
 const isValidPhone = computed(() => /^1[3-9]\d{9}$/.test(codeForm.value.phone));
 
-function sendCode() {
-  if (!isValidPhone.value) {
-    ElMessage.warning('请输入有效的手机号');
-    return;
-  }
-
-  api.post('/auth/send-code', { phone: codeForm.value.phone, type: 'login' })
-    .then(() => {
-      ElMessage.success('验证码已发送');
-      startCountdown();
-    });
+async function sendCode() {
+  await sendSmsCode(codeForm.value.phone, 'login');
 }
 
-function startCountdown() {
-  countdown.value = 60;
-  const timer = setInterval(() => {
-    countdown.value--;
-    if (countdown.value <= 0) {
-      clearInterval(timer);
-    }
-  }, 1000);
-}
-
-function handleCodeLogin() {
+async function handleCodeLogin() {
   if (!codeForm.value.phone || !codeForm.value.code) {
     ElMessage.warning('请填写完整信息');
     return;
   }
 
+  if (!verifyCodeFormat(codeForm.value.code)) {
+    return;
+  }
+
   loading.value = true;
-  api.post('/auth/login', {
-    phone: codeForm.value.phone,
-    code: codeForm.value.code
-  })
-    .then((res) => {
-      userStore.setToken(res.data.token);
-      userStore.setUserInfo(res.data.user);
-      userStore.setTrips(res.data.trips);
-      ElMessage.success('登录成功');
-      router.push('/home');
-    })
-    .finally(() => {
-      loading.value = false;
+  try {
+    const res = await api.post('/auth/login', {
+      phone: codeForm.value.phone,
+      code: codeForm.value.code
     });
+    userStore.setToken(res.data.token);
+    userStore.setUserInfo(res.data.user);
+    userStore.setTrips(res.data.trips);
+    ElMessage.success('登录成功');
+    router.push('/home');
+  } finally {
+    loading.value = false;
+  }
 }
 
 function handlePasswordLogin() {

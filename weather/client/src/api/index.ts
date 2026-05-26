@@ -35,6 +35,15 @@ interface ApiError extends Error {
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
+
+    if (token?.startsWith('mock_') && config.skipGlobalHandler) {
+      return Promise.reject({
+        isMockMode: true,
+        message: '演示模式，跳过真实请求',
+        config,
+      });
+    }
+
     if (token && !token.startsWith('mock_')) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -56,12 +65,19 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error: AxiosError) => {
+  (error: AxiosError & { isMockMode?: boolean }) => {
+    if (error.isMockMode) {
+      return Promise.reject(error);
+    }
+
     const err: ApiError = new Error();
     err.name = 'NetworkError';
     err.isNetworkError = true;
 
-    if (error.response?.status === 401) {
+    const currentToken = getAuthToken();
+    const isMockToken = currentToken?.startsWith('mock_');
+
+    if (error.response?.status === 401 && !isMockToken) {
       clearAuthToken();
       window.dispatchEvent(new CustomEvent('auth:logout'));
       if (!error.config?.skipGlobalHandler) {
@@ -71,6 +87,14 @@ api.interceptors.response.use(
         }, 1000);
       }
       return Promise.reject(err);
+    }
+
+    if (error.response?.status === 401 && isMockToken) {
+      return Promise.reject({
+        ...err,
+        isMockMode: true,
+        message: '演示模式，无需认证',
+      });
     }
 
     if (!error.config?.skipGlobalHandler) {

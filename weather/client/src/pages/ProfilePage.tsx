@@ -80,7 +80,7 @@ export default function ProfilePage() {
         id: user?.id || 'mock_user',
         nickname: user?.nickname || '晴景用户',
         avatar: user?.avatar,
-        phone: '138****8888',
+        phone: user?.phone || '138****8888',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

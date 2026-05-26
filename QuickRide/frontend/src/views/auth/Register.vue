@@ -25,10 +25,11 @@
           >
             <template #append>
               <el-button
-                :disabled="countdown > 0 || !isValidPhone"
+                :disabled="!canSend || !isValidPhone"
+                :loading="sending"
                 @click="sendCode"
               >
-                {{ countdown > 0 ? `${countdown}s` : '获取验证码' }}
+                {{ sending ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
               </el-button>
             </template>
           </el-input>
@@ -75,13 +76,14 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Phone, Key, Lock, User, Van } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
+import { useSmsCode } from '@/composables/useSmsCode';
 import api from '@/utils/api';
 
 const router = useRouter();
 const userStore = useUserStore();
+const { countdown, sending, canSend, sendCode: sendSmsCode, verifyCodeFormat } = useSmsCode();
 
 const loading = ref(false);
-const countdown = ref(0);
 
 const form = ref({
   phone: '',
@@ -92,46 +94,30 @@ const form = ref({
 
 const isValidPhone = computed(() => /^1[3-9]\d{9}$/.test(form.value.phone));
 
-function sendCode() {
-  if (!isValidPhone.value) {
-    ElMessage.warning('请输入有效的手机号');
-    return;
-  }
-
-  api.post('/auth/send-code', { phone: form.value.phone, type: 'register' })
-    .then(() => {
-      ElMessage.success('验证码已发送');
-      startCountdown();
-    });
+async function sendCode() {
+  await sendSmsCode(form.value.phone, 'register');
 }
 
-function startCountdown() {
-  countdown.value = 60;
-  const timer = setInterval(() => {
-    countdown.value--;
-    if (countdown.value <= 0) {
-      clearInterval(timer);
-    }
-  }, 1000);
-}
-
-function handleRegister() {
+async function handleRegister() {
   if (!form.value.phone || !form.value.code) {
     ElMessage.warning('请填写必填信息');
     return;
   }
 
+  if (!verifyCodeFormat(form.value.code)) {
+    return;
+  }
+
   loading.value = true;
-  api.post('/auth/register', form.value)
-    .then((res) => {
-      userStore.setToken(res.data.token);
-      userStore.setUserInfo(res.data.user);
-      ElMessage.success('注册成功');
-      router.push('/home');
-    })
-    .finally(() => {
-      loading.value = false;
-    });
+  try {
+    const res = await api.post('/auth/register', form.value);
+    userStore.setToken(res.data.token);
+    userStore.setUserInfo(res.data.user);
+    ElMessage.success('注册成功');
+    router.push('/home');
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 

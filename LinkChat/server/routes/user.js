@@ -115,7 +115,6 @@ router.get('/security-questions', async (req, res) => {
 });
 
 router.post('/change-password', [
-  body('oldPassword').isLength({ min: 6, max: 20 }).withMessage('旧密码格式不正确'),
   body('newPassword').isLength({ min: 6, max: 20 }).withMessage('新密码长度为6-20位')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -123,27 +122,58 @@ router.post('/change-password', [
     return res.status(400).json({ message: errors.array()[0].msg });
   }
 
-  const { oldPassword, newPassword } = req.body;
+  const { oldPassword, newPassword, code, phone } = req.body;
+  const userId = req.user._id;
 
   try {
-    const user = await dbAdapter.User.findById(req.user._id);
-    if (!user.password) {
-      return res.status(400).json({ message: '请先设置密码' });
+    const user = await dbAdapter.User.findById(userId);
+
+    if (!user.phone) {
+      return res.status(400).json({ message: '请先绑定手机号' });
     }
 
-    const isMatch = await user.comparePassword(oldPassword);
-    if (!isMatch) {
-      return res.status(400).json({ message: '旧密码不正确' });
-    }
+    if (user.password) {
+      if (!oldPassword) {
+        return res.status(400).json({ message: '请输入旧密码' });
+      }
 
-    if (oldPassword === newPassword) {
-      return res.status(400).json({ message: '新密码不能与旧密码相同' });
+      const isMatch = await user.comparePassword(oldPassword);
+      if (!isMatch) {
+        return res.status(400).json({ message: '旧密码不正确' });
+      }
+
+      if (oldPassword === newPassword) {
+        return res.status(400).json({ message: '新密码不能与旧密码相同' });
+      }
+    } else {
+      if (!code || !phone) {
+        return res.status(400).json({ message: '请输入验证码' });
+      }
+
+      if (phone !== user.phone) {
+        return res.status(400).json({ message: '手机号与当前账号不匹配' });
+      }
+
+      const verification = await dbAdapter.VerificationCode.findOne({
+        phone,
+        code,
+        type: 'set_password',
+        used: false,
+        expiresAt: { $gt: new Date() }
+      });
+
+      if (!verification) {
+        return res.status(400).json({ message: '验证码错误或已过期' });
+      }
+
+      verification.used = true;
+      await dbAdapter.save(verification);
     }
 
     user.password = newPassword;
     await dbAdapter.save(user);
 
-    res.json({ message: '密码修改成功' });
+    res.json({ message: '密码设置成功' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: '服务器错误' });
