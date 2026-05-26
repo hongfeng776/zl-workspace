@@ -90,16 +90,16 @@ declare module 'axios' {
 
 export const authApi = {
   sendCode: (target: string, type: 'phone' | 'email') =>
-    api.post('/auth/send-code', { target, type }),
+    api.post('/auth/send-code', { target, type }, { skipGlobalHandler: true }),
 
   register: (phone: string, code: string, password: string) =>
-    api.post('/auth/register', { phone, code, password }),
+    api.post('/auth/register', { phone, code, password }, { skipGlobalHandler: true }),
 
   login: (phone: string, password?: string, code?: string) =>
-    api.post('/auth/login', { phone, password, code }),
+    api.post('/auth/login', { phone, password, code }, { skipGlobalHandler: true }),
 
   requestReset: (target: string, type: 'phone' | 'email') =>
-    api.post('/auth/request-reset', { target, type }),
+    api.post('/auth/request-reset', { target, type }, { skipGlobalHandler: true }),
 
   resetPassword: (data: {
     target?: string;
@@ -107,7 +107,7 @@ export const authApi = {
     token?: string;
     newPassword: string;
     type?: 'phone' | 'email';
-  }) => api.post('/auth/reset-password', data),
+  }) => api.post('/auth/reset-password', data, { skipGlobalHandler: true }),
 };
 
 export const userApi = {

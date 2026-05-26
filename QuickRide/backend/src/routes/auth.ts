@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { run, get, all } from '../database';
-import { generateCode, sendSmsCode } from '../utils/sms';
+import { generateCode, sendSmsCode, checkRateLimit } from '../utils/sms';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -11,11 +11,46 @@ router.post('/send-code', async (req: Request, res: Response) => {
   try {
     const { phone, type = 'register' } = req.body;
     
-    if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    if (!phone) {
+      return res.status(400).json({ message: '请输入手机号' });
+    }
+
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
       return res.status(400).json({ message: '请输入有效的手机号' });
     }
 
+    const validTypes = ['register', 'login', 'reset'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ message: '无效的验证码类型' });
+    }
+
+    const rateLimit = checkRateLimit(phone);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ message: rateLimit.message });
+    }
+
+    const existingCode = await get(
+      'SELECT * FROM verification_codes WHERE phone = ? AND type = ? ORDER BY created_at DESC LIMIT 1',
+      [phone, type]
+    );
+
+    if (existingCode && new Date(existingCode.expires_at) > new Date()) {
+      const timeDiff = Math.ceil((new Date(existingCode.expires_at).getTime() - Date.now()) / 1000);
+      if (timeDiff > 240) {
+        return res.status(400).json({ 
+          message: `验证码已发送，请${timeDiff - 240}秒后再试`,
+          code: process.env.NODE_ENV === 'development' ? existingCode.code : undefined
+        });
+      }
+    }
+
     const code = generateCode();
+    
+    if (code.length !== 4) {
+      console.error('[验证码] 生成失败，长度不正确:', code);
+      return res.status(500).json({ message: '验证码生成失败，请稍后重试' });
+    }
+
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     await run(
@@ -23,11 +58,26 @@ router.post('/send-code', async (req: Request, res: Response) => {
       [phone, code, type, expiresAt]
     );
 
-    sendSmsCode(phone, code);
+    const smsResult = sendSmsCode(phone, code);
+    
+    if (!smsResult.success) {
+      console.error('[短信] 发送失败:', smsResult.message);
+      return res.status(500).json({ message: smsResult.message || '短信发送失败，请稍后重试' });
+    }
 
-    res.json({ message: '验证码发送成功', code: process.env.NODE_ENV === 'development' ? code : undefined });
-  } catch (error) {
-    res.status(500).json({ message: '发送验证码失败', error });
+    console.log(`[验证码] ${type} - 手机号: ${phone}, 验证码: ${code}, 有效期至: ${expiresAt}`);
+
+    res.json({ 
+      message: '验证码发送成功', 
+      code: process.env.NODE_ENV === 'development' ? code : undefined,
+      expiresIn: 300
+    });
+  } catch (error: any) {
+    console.error('[验证码] 发送异常:', error);
+    res.status(500).json({ 
+      message: '发送验证码失败，请稍后重试',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

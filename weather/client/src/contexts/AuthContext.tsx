@@ -36,12 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedUser = localStorage.getItem('user');
 
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setAuthToken(savedToken);
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setToken(savedToken);
+        setAuthToken(savedToken);
+        setUser(parsedUser);
       } catch {
         clearAuthToken();
+        localStorage.removeItem('user');
       }
     }
     setLoading(false);
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     clearAuthToken();
+    localStorage.removeItem('user');
   }, []);
 
   const updateUser = useCallback((updates: Partial<User>) => {
@@ -78,13 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const isMockMode = !!token?.startsWith('mock_');
+  const isAuthenticated = !!token;
 
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
-        isAuthenticated: !!token,
+        isAuthenticated,
         isMockMode,
         loading,
         login,
