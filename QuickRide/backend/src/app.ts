@@ -8,6 +8,9 @@ import authRoutes from './routes/auth';
 import verificationRoutes from './routes/verification';
 import appealRoutes from './routes/appeal';
 import tripRoutes from './routes/trip';
+import carRoutes from './routes/car';
+import serviceRoutes from './routes/service';
+import platformRoutes from './routes/platform';
 
 async function startServer() {
   await initDatabase();
@@ -25,6 +28,9 @@ async function startServer() {
   app.use('/api/verification', verificationRoutes);
   app.use('/api/appeal', appealRoutes);
   app.use('/api/trip', tripRoutes);
+  app.use('/api/car', carRoutes);
+  app.use('/api/service', serviceRoutes);
+  app.use('/api/platform', platformRoutes);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: '捷行出行后端服务运行正常' });

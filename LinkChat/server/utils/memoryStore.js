@@ -2,8 +2,10 @@ const bcrypt = require('bcryptjs');
 
 let users = [];
 let verificationCodes = [];
+let posts = [];
 let userIdCounter = 1;
 let codeIdCounter = 1;
+let postIdCounter = 1;
 
 const hashPassword = async (password) => {
   return bcrypt.hash(password, 10);
@@ -157,6 +159,134 @@ const memoryStore = {
     }
   },
   
+  posts: {
+    create: async (postData) => {
+      const post = {
+        _id: generateId(),
+        ...postData,
+        likes: postData.likes || 0,
+        comments: postData.comments || 0,
+        views: postData.views || 0,
+        shares: postData.shares || 0,
+        isActive: postData.isActive !== undefined ? postData.isActive : true,
+        tags: postData.tags || [],
+        createdAt: postData.createdAt || new Date(),
+        updatedAt: new Date()
+      };
+      posts.push(post);
+      return post;
+    },
+    
+    insertMany: async (postsData) => {
+      const createdPosts = postsData.map(postData => ({
+        _id: generateId(),
+        ...postData,
+        likes: postData.likes || 0,
+        comments: postData.comments || 0,
+        views: postData.views || 0,
+        shares: postData.shares || 0,
+        isActive: postData.isActive !== undefined ? postData.isActive : true,
+        tags: postData.tags || [],
+        createdAt: postData.createdAt || new Date(),
+        updatedAt: new Date()
+      }));
+      posts = [...posts, ...createdPosts];
+      return createdPosts;
+    },
+    
+    countDocuments: async (query = {}) => {
+      return posts.filter(p => {
+        for (const key in query) {
+          if (key === '$or') {
+            const orMatch = query.$or.some(orCondition => {
+              for (const orKey in orCondition) {
+                const val = p[orKey];
+                const cond = orCondition[orKey];
+                if (cond && typeof cond === 'object' && cond.$regex) {
+                  const regex = new RegExp(cond.$regex, cond.$options || '');
+                  if (Array.isArray(val)) {
+                    return val.some(v => regex.test(v));
+                  }
+                  return regex.test(val);
+                }
+                if (val !== cond) return false;
+              }
+              return true;
+            });
+            if (!orMatch) return false;
+          } else {
+            if (p[key] !== query[key]) return false;
+          }
+        }
+        return true;
+      }).length;
+    },
+    
+    find: async (query = {}) => {
+      let filtered = posts.filter(p => {
+        for (const key in query) {
+          if (key === '$or') {
+            const orMatch = query.$or.some(orCondition => {
+              for (const orKey in orCondition) {
+                const val = p[orKey];
+                const cond = orCondition[orKey];
+                if (cond && typeof cond === 'object' && cond.$regex) {
+                  const regex = new RegExp(cond.$regex, cond.$options || '');
+                  if (Array.isArray(val)) {
+                    return val.some(v => regex.test(v));
+                  }
+                  return regex.test(val);
+                }
+                if (val !== cond) return false;
+              }
+              return true;
+            });
+            if (!orMatch) return false;
+          } else if (key === '$and') {
+            const andMatch = query.$and.every(andCondition => {
+              for (const andKey in andCondition) {
+                if (p[andKey] !== andCondition[andKey]) return false;
+              }
+              return true;
+            });
+            if (!andMatch) return false;
+          } else {
+            if (p[key] !== query[key]) return false;
+          }
+        }
+        return true;
+      });
+      
+      filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      return {
+        sort: () => ({
+          skip: (skip) => ({
+            limit: (limit) => ({
+              select: () => filtered.slice(skip, skip + limit)
+            })
+          })
+        }),
+        skip: (skip) => ({
+          limit: (limit) => ({
+            select: () => filtered.slice(skip, skip + limit)
+          })
+        })
+      };
+    },
+    
+    findById: async (id) => {
+      return posts.find(p => p._id === id) || null;
+    },
+    
+    findByIdAndUpdate: async (id, update) => {
+      const index = posts.findIndex(p => p._id === id);
+      if (index === -1) return null;
+      posts[index] = { ...posts[index], ...update, updatedAt: new Date() };
+      return posts[index];
+    }
+  },
+  
   save: async (doc) => {
     doc.updatedAt = new Date();
     return doc;
@@ -165,10 +295,12 @@ const memoryStore = {
   clear: () => {
     users = [];
     verificationCodes = [];
+    posts = [];
   },
   
   getUsers: () => users,
-  getCodes: () => verificationCodes
+  getCodes: () => verificationCodes,
+  getPosts: () => posts
 };
 
 module.exports = memoryStore;

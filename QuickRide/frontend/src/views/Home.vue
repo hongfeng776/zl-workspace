@@ -15,9 +15,17 @@
 
     <div class="home-content">
       <div class="quick-actions">
-        <div class="action-card" @click="router.push('/trips')">
+        <div class="action-card" @click="router.push('/car-types')">
           <el-icon :size="32" color="#667eea"><Van /></el-icon>
+          <span>车型选择</span>
+        </div>
+        <div class="action-card" @click="router.push('/trips')">
+          <el-icon :size="32" color="#667eea"><Document /></el-icon>
           <span>我的行程</span>
+        </div>
+        <div class="action-card" @click="router.push('/service')">
+          <el-icon :size="32" color="#667eea"><Present /></el-icon>
+          <span>优惠活动</span>
         </div>
         <div class="action-card" @click="router.push('/verification')">
           <el-icon :size="32" :color="userStore.userInfo?.verified ? '#67c23a' : '#e6a23c'">
@@ -29,9 +37,17 @@
           <el-icon :size="32" color="#667eea"><Wallet /></el-icon>
           <span>我的钱包</span>
         </div>
+        <div class="action-card" @click="router.push('/about')">
+          <el-icon :size="32" color="#667eea"><InfoFilled /></el-icon>
+          <span>关于我们</span>
+        </div>
         <div class="action-card" @click="router.push('/appeal')">
           <el-icon :size="32" color="#667eea"><Service /></el-icon>
           <span>账号申诉</span>
+        </div>
+        <div class="action-card" @click="router.push('/service')">
+          <el-icon :size="32" color="#667eea"><Location /></el-icon>
+          <span>服务范围</span>
         </div>
       </div>
 
@@ -94,7 +110,10 @@ import {
   Service,
   Location,
   Sort,
-  Right
+  Right,
+  Document,
+  Present,
+  InfoFilled
 } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
 
@@ -149,7 +168,7 @@ onMounted(() => {
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 15px;
+  gap: 12px;
   margin-bottom: 20px;
 }
 

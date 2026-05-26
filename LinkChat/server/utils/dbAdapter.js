@@ -66,6 +66,56 @@ const dbAdapter = {
     }
   },
   
+  Post: {
+    create: async (data) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return new Post(data).save();
+      }
+      return memoryStore.posts.create(data);
+    },
+    
+    insertMany: async (data) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return Post.insertMany(data);
+      }
+      return memoryStore.posts.insertMany(data);
+    },
+    
+    countDocuments: async (query) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return Post.countDocuments(query);
+      }
+      return memoryStore.posts.countDocuments(query);
+    },
+    
+    find: async (query) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return Post.find(query);
+      }
+      return memoryStore.posts.find(query);
+    },
+    
+    findById: async (id) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return Post.findById(id);
+      }
+      return memoryStore.posts.findById(id);
+    },
+    
+    findByIdAndUpdate: async (id, update) => {
+      if (isMongoConnected()) {
+        const Post = require('../models/Post');
+        return Post.findByIdAndUpdate(id, update, { new: true });
+      }
+      return memoryStore.posts.findByIdAndUpdate(id, update);
+    }
+  },
+  
   save: async (doc) => {
     if (isMongoConnected() && doc.save) {
       return doc.save();

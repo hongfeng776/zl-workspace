@@ -41,6 +41,47 @@ import { useAuth } from '../contexts/AuthContext';
 
 const { RangePicker } = DatePicker;
 
+const CACHE_KEY = 'weather_home_cache';
+const CACHE_TTL = 5 * 60 * 1000;
+
+interface WeatherCache {
+  current: CurrentWeather;
+  hourly: HourlyForecast[];
+  daily: DailyForecast[];
+  air: AirQuality;
+  life: LifeIndex[];
+  timestamp: number;
+}
+
+function getCachedWeather(): WeatherCache | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as WeatherCache;
+    if (Date.now() - data.timestamp < CACHE_TTL) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedWeather(data: Omit<WeatherCache, 'timestamp'>) {
+  try {
+    const cache: WeatherCache = { ...data, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {
+  }
+}
+
+function clearWeatherCache() {
+  try {
+    localStorage.removeItem(CACHE_KEY);
+  } catch {
+  }
+}
+
 export default function HomePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -59,12 +100,21 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'daily' | 'hourly'>('daily');
 
   useEffect(() => {
-    fetchWeatherData();
+    const cached = getCachedWeather();
+    if (cached) {
+      setCurrentWeather(cached.current);
+      setHourlyForecast(cached.hourly);
+      setDailyForecast(cached.daily);
+      setAirQuality(cached.air);
+      setLifeIndices(cached.life);
+      setLoading(false);
+    }
+    fetchWeatherData(!!cached);
   }, []);
 
-  const fetchWeatherData = useCallback(async () => {
+  const fetchWeatherData = useCallback(async (useSilent = false) => {
     try {
-      setLoading(true);
+      if (!useSilent) setLoading(true);
       const [current, hourly, daily, air, life] = await Promise.all([
         weatherApi.getCurrentWeather(),
         weatherApi.getHourlyForecast(),
@@ -77,8 +127,9 @@ export default function HomePage() {
       setDailyForecast(daily);
       setAirQuality(air);
       setLifeIndices(life);
+      setCachedWeather({ current, hourly, daily, air, life });
     } catch (error) {
-      message.error('获取天气数据失败');
+      if (!useSilent) message.error('获取天气数据失败');
     } finally {
       setLoading(false);
     }
@@ -87,6 +138,7 @@ export default function HomePage() {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
+      clearWeatherCache();
       await weatherApi.refreshWeather();
       const [current, hourly, daily, air, life] = await Promise.all([
         weatherApi.getCurrentWeather(),
@@ -100,6 +152,7 @@ export default function HomePage() {
       setDailyForecast(daily);
       setAirQuality(air);
       setLifeIndices(life);
+      setCachedWeather({ current, hourly, daily, air, life });
       message.success('刷新成功');
     } catch (error) {
       message.error('刷新失败');

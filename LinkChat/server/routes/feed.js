@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const Post = require('../models/Post');
+const mongoose = require('mongoose');
+const dbAdapter = require('../utils/dbAdapter');
 const auth = require('../middleware/auth');
 
 const mockPosts = [
@@ -141,18 +142,17 @@ const mockPosts = [
 
 router.get('/seed', async (req, res) => {
   try {
-    const count = await Post.countDocuments();
+    const count = await dbAdapter.Post.countDocuments({});
     if (count === 0) {
-      const User = require('../models/User');
-      const user = await User.findOne();
-      const authorId = user ? user._id : new require('mongoose').Types.ObjectId();
+      const user = await dbAdapter.User.findOne({});
+      const authorId = user ? user._id : new mongoose.Types.ObjectId();
       
       const posts = mockPosts.map(post => ({
         ...post,
         author: authorId
       }));
       
-      await Post.insertMany(posts);
+      await dbAdapter.Post.insertMany(posts);
       res.json({ message: '模拟数据已插入', count: mockPosts.length });
     } else {
       res.json({ message: '数据已存在，跳过插入' });
@@ -172,12 +172,19 @@ router.get('/', auth, async (req, res) => {
       query.type = type;
     }
 
-    const total = await Post.countDocuments(query);
-    const posts = await Post.find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(parseInt(pageSize))
-      .select('-__v');
+    const total = await dbAdapter.Post.countDocuments(query);
+    const result = await dbAdapter.Post.find(query);
+    
+    let posts;
+    if (dbAdapter.isUsingMemory()) {
+      posts = result.skip((page - 1) * pageSize).limit(parseInt(pageSize)).select();
+    } else {
+      posts = await result
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(parseInt(pageSize))
+        .select('-__v');
+    }
 
     res.json({
       data: posts,
@@ -213,12 +220,19 @@ router.get('/search', auth, async (req, res) => {
       query.type = type;
     }
 
-    const total = await Post.countDocuments(query);
-    const posts = await Post.find(query)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * pageSize)
-      .limit(parseInt(pageSize))
-      .select('-__v');
+    const total = await dbAdapter.Post.countDocuments(query);
+    const result = await dbAdapter.Post.find(query);
+    
+    let posts;
+    if (dbAdapter.isUsingMemory()) {
+      posts = result.skip((page - 1) * pageSize).limit(parseInt(pageSize)).select();
+    } else {
+      posts = await result
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(parseInt(pageSize))
+        .select('-__v');
+    }
 
     res.json({
       data: posts,
@@ -235,14 +249,14 @@ router.get('/search', auth, async (req, res) => {
 
 router.get('/:id', auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await dbAdapter.Post.findById(req.params.id);
     
     if (!post || !post.isActive) {
       return res.status(404).json({ message: '内容不存在' });
     }
 
     post.views += 1;
-    await post.save();
+    await dbAdapter.save(post);
 
     res.json({ data: post });
   } catch (error) {
@@ -253,19 +267,19 @@ router.get('/:id', auth, async (req, res) => {
 
 router.post('/:id/share', auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await dbAdapter.Post.findById(req.params.id);
     
     if (!post || !post.isActive) {
       return res.status(404).json({ message: '内容不存在' });
     }
 
     post.shares += 1;
-    await post.save();
+    await dbAdapter.save(post);
 
     res.json({ 
       message: '分享成功',
       shares: post.shares,
-      shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/post/${post._id}`
+      shareUrl: `${process.env.FRONTEND_URL || 'http://localhost:3002'}/post/${post._id}`
     });
   } catch (error) {
     console.error('分享失败:', error);
@@ -275,14 +289,14 @@ router.post('/:id/share', auth, async (req, res) => {
 
 router.post('/:id/like', auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await dbAdapter.Post.findById(req.params.id);
     
     if (!post || !post.isActive) {
       return res.status(404).json({ message: '内容不存在' });
     }
 
     post.likes += 1;
-    await post.save();
+    await dbAdapter.save(post);
 
     res.json({ 
       message: '点赞成功',

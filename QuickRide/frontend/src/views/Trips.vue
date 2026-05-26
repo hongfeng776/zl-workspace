@@ -20,7 +20,7 @@
       </div>
 
       <div v-else class="trip-list">
-        <div class="trip-card" v-for="trip in trips" :key="trip.id">
+        <div class="trip-card" v-for="trip in trips" :key="trip.id" @click="goToDetail(trip.id)">
           <div class="trip-route">
             <div class="location start">
               <span class="dot start-dot"></span>
@@ -38,6 +38,9 @@
               <span class="trip-distance" v-if="trip.distance">
                 {{ trip.distance }}km
               </span>
+              <span class="trip-car" v-if="trip.carType">
+                {{ getCarTypeName(trip.carType) }}
+              </span>
             </div>
             <div class="trip-right">
               <span class="trip-price">¥{{ trip.price || '0.00' }}</span>
@@ -45,6 +48,9 @@
                 {{ getStatusText(trip.status) }}
               </el-tag>
             </div>
+          </div>
+          <div class="trip-arrow">
+            <el-icon><Right /></el-icon>
           </div>
         </div>
       </div>
@@ -55,7 +61,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowLeft, Van, Loading } from '@element-plus/icons-vue';
+import { ArrowLeft, Van, Loading, Right } from '@element-plus/icons-vue';
 import { useUserStore } from '@/stores/user';
 import api from '@/utils/api';
 
@@ -118,6 +124,20 @@ function getStatusText(status: string) {
     cancelled: '已取消'
   };
   return map[status] || status;
+}
+
+function getCarTypeName(type: string) {
+  const map: Record<string, string> = {
+    express: '快车',
+    premium: '专车',
+    luxury: '豪华车',
+    taxi: '出租车'
+  };
+  return map[type] || type;
+}
+
+function goToDetail(tripId: number) {
+  router.push(`/trip/${tripId}`);
 }
 </script>
 

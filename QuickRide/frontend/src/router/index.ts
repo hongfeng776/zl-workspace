@@ -53,6 +53,30 @@ const routes: RouteRecordRaw[] = [
     name: 'Trips',
     component: () => import('@/views/Trips.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/trip/:id',
+    name: 'TripDetail',
+    component: () => import('@/views/TripDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/car-types',
+    name: 'CarTypes',
+    component: () => import('@/views/CarTypes.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/service',
+    name: 'Service',
+    component: () => import('@/views/Service.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('@/views/About.vue'),
+    meta: { requiresAuth: false }
   }
 ];
 
