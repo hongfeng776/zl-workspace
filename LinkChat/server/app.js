@@ -6,6 +6,7 @@ const connectDB = require('./config/db');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
+const feedRoutes = require('./routes/feed');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/feed', feedRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: '接口不存在' });

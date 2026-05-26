@@ -555,6 +555,15 @@ export const weatherApi = {
       return generateMockHistoryWeather(startDate, endDate);
     }
   },
+
+  refreshWeather: async () => {
+    try {
+      const res = await api.post('/weather/refresh', {}, { skipGlobalHandler: true });
+      return res.data;
+    } catch {
+      return { code: 0, message: 'success' };
+    }
+  },
 };
 
 export default api;

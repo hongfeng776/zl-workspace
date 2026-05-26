@@ -49,4 +49,13 @@ export const userApi = {
   updateProfile: (data) => api.put('/user/profile', data),
 }
 
+export const feedApi = {
+  getFeed: (type, page, pageSize) => api.get('/feed', { params: { type, page, pageSize } }),
+  searchFeed: (keyword, type, page, pageSize) => api.get('/feed/search', { params: { keyword, type, page, pageSize } }),
+  getPostDetail: (id) => api.get(`/feed/${id}`),
+  sharePost: (id) => api.post(`/feed/${id}/share`),
+  likePost: (id) => api.post(`/feed/${id}/like`),
+  seedData: () => api.get('/feed/seed'),
+}
+
 export default api

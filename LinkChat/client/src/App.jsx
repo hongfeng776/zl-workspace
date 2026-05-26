@@ -3,6 +3,8 @@ import { useAuthStore } from './store/authStore'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
+import Feed from './pages/Feed'
+import PostDetail from './pages/PostDetail'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
 import SecurityVerify from './pages/SecurityVerify'
@@ -20,6 +22,16 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/" element={
+        <PrivateRoute>
+          <Feed />
+        </PrivateRoute>
+      } />
+      <Route path="/post/:id" element={
+        <PrivateRoute>
+          <PostDetail />
+        </PrivateRoute>
+      } />
+      <Route path="/home" element={
         <PrivateRoute>
           <Home />
         </PrivateRoute>

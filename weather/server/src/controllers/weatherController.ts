@@ -57,3 +57,8 @@ export const getHistoryWeather = (req: Request, res: Response) => {
   const data = weatherService.getHistoryWeather(startDate as string, endDate as string);
   res.json({ code: 0, message: 'success', data });
 };
+
+export const refreshWeather = (req: Request, res: Response) => {
+  weatherService.clearCache();
+  res.json({ code: 0, message: '天气数据已刷新' });
+};

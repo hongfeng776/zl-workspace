@@ -6,6 +6,7 @@ import {
   getAirQuality,
   getLifeIndices,
   getHistoryWeather,
+  refreshWeather,
 } from '../controllers/weatherController';
 
 const router = Router();
@@ -16,5 +17,6 @@ router.get('/daily', getDailyForecast);
 router.get('/air', getAirQuality);
 router.get('/life', getLifeIndices);
 router.get('/history', getHistoryWeather);
+router.post('/refresh', refreshWeather);
 
 export { router as weatherRoutes };

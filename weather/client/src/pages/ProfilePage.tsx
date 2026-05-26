@@ -18,6 +18,7 @@ import {
   CameraOutlined,
   CheckCircleFilled,
   SwapOutlined,
+  ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
@@ -258,6 +259,16 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-container">
+      <div className="profile-header-bar">
+        <Button
+          type="text"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/')}
+          className="back-home-btn"
+        >
+          返回首页
+        </Button>
+      </div>
       <div className="profile-card">
         <div className="profile-header">
           <Dropdown

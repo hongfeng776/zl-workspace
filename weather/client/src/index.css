@@ -99,6 +99,28 @@ body {
   padding: 24px;
 }
 
+.profile-header-bar {
+  max-width: 800px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+}
+
+.back-home-btn {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 20px !important;
+  font-size: 14px !important;
+  padding: 4px 16px !important;
+  height: auto !important;
+  backdrop-filter: blur(10px);
+}
+
+.back-home-btn:hover {
+  background: rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important;
+}
+
 .profile-card {
   max-width: 800px;
   margin: 0 auto;

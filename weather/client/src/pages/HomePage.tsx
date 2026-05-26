@@ -87,6 +87,7 @@ export default function HomePage() {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
+      await weatherApi.refreshWeather();
       const [current, hourly, daily, air, life] = await Promise.all([
         weatherApi.getCurrentWeather(),
         weatherApi.getHourlyForecast(),
