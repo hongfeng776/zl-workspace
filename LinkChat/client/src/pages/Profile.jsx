@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { userApi, authApi } from '../utils/api'
@@ -13,8 +13,25 @@ const Profile = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   
+  const [bindPhone, setBindPhone] = useState('')
+  const [bindCode, setBindCode] = useState('')
+  const [bindCountdown, setBindCountdown] = useState(0)
+  const [bindLoading, setBindLoading] = useState(false)
+  const [bindCodeLoading, setBindCodeLoading] = useState(false)
+  
+  const [setPasswordPhone, setSetPasswordPhone] = useState('')
+  const [setPasswordCode, setSetPasswordCode] = useState('')
+  const [setPasswordCountdown, setSetPasswordCountdown] = useState(0)
+  const [setPasswordCodeLoading, setSetPasswordCodeLoading] = useState(false)
+  
   const navigate = useNavigate()
   const { showToast, ToastComponent } = useToast()
+  
+  useEffect(() => {
+    if (user?.phone) {
+      setSetPasswordPhone(user.phone)
+    }
+  }, [user])
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -35,13 +52,89 @@ const Profile = () => {
     }
   }
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault()
-    
-    if (!oldPassword) {
-      showToast('请输入旧密码', 'error')
+  const handleSendBindCode = async () => {
+    if (!/^1[3-9]\d{9}$/.test(bindPhone)) {
+      showToast('请输入正确的手机号', 'error')
       return
     }
+
+    setBindCodeLoading(true)
+    try {
+      await authApi.sendCode(bindPhone, 'bind_phone')
+      showToast('验证码发送成功')
+      setBindCountdown(60)
+      const timer = setInterval(() => {
+        setBindCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (error) {
+      showToast(error.response?.data?.message || '发送失败', 'error')
+    } finally {
+      setBindCodeLoading(false)
+    }
+  }
+
+  const handleBindPhone = async (e) => {
+    e.preventDefault()
+    
+    if (!/^1[3-9]\d{9}$/.test(bindPhone)) {
+      showToast('请输入正确的手机号', 'error')
+      return
+    }
+    
+    if (!bindCode || bindCode.length !== 6) {
+      showToast('请输入6位验证码', 'error')
+      return
+    }
+
+    setBindLoading(true)
+    try {
+      const response = await authApi.bindPhone(bindPhone, bindCode)
+      setUser(response.data.user)
+      showToast('手机号绑定成功')
+      setBindPhone('')
+      setBindCode('')
+    } catch (error) {
+      showToast(error.response?.data?.message || '绑定失败', 'error')
+    } finally {
+      setBindLoading(false)
+    }
+  }
+
+  const handleSendSetPasswordCode = async () => {
+    if (!/^1[3-9]\d{9}$/.test(setPasswordPhone)) {
+      showToast('请输入正确的手机号', 'error')
+      return
+    }
+
+    setSetPasswordCodeLoading(true)
+    try {
+      await authApi.sendCode(setPasswordPhone, 'set_password')
+      showToast('验证码发送成功')
+      setSetPasswordCountdown(60)
+      const timer = setInterval(() => {
+        setSetPasswordCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (error) {
+      showToast(error.response?.data?.message || '发送失败', 'error')
+    } finally {
+      setSetPasswordCodeLoading(false)
+    }
+  }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault()
     
     if (!newPassword || newPassword.length < 6) {
       showToast('新密码长度不能少于6位', 'error')
@@ -55,11 +148,34 @@ const Profile = () => {
 
     setLoading(true)
     try {
-      await userApi.changePassword(oldPassword, newPassword)
-      showToast('密码修改成功')
+      const requestData = { newPassword }
+      
+      if (user?.hasPassword) {
+        if (!oldPassword) {
+          showToast('请输入旧密码', 'error')
+          setLoading(false)
+          return
+        }
+        requestData.oldPassword = oldPassword
+      } else {
+        if (!setPasswordCode || setPasswordCode.length !== 6) {
+          showToast('请输入6位验证码', 'error')
+          setLoading(false)
+          return
+        }
+        requestData.code = setPasswordCode
+        requestData.phone = setPasswordPhone
+      }
+      
+      await userApi.changePassword(requestData)
+      showToast('密码设置成功')
       setOldPassword('')
       setNewPassword('')
       setConfirmPassword('')
+      setSetPasswordCode('')
+      
+      const userInfoResponse = await authApi.getUserInfo()
+      setUser(userInfoResponse.data.user)
     } catch (error) {
       showToast(error.response?.data?.message || '修改失败', 'error')
     } finally {
@@ -158,13 +274,69 @@ const Profile = () => {
               <form onSubmit={handleUpdateProfile}>
                 <div className="form-group">
                   <label className="form-label">手机号</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={user?.phone ? user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '未绑定'}
-                    disabled
-                    style={{ background: '#f5f5f5' }}
-                  />
+                  {user?.phone ? (
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                      disabled
+                      style={{ background: '#f5f5f5' }}
+                    />
+                  ) : (
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '14px' }}>未绑定</span>
+                      <div style={{ 
+                        padding: '16px', 
+                        background: '#fff8e6', 
+                        borderRadius: '8px', 
+                        marginTop: '8px',
+                        border: '1px solid #ffe58f'
+                      }}>
+                        <p style={{ color: '#ad6800', fontSize: '13px', margin: '0 0 12px 0' }}>
+                          为了您的账号安全，请绑定手机号
+                        </p>
+                        <div className="form-group" style={{ marginBottom: '12px' }}>
+                          <input
+                            type="tel"
+                            className="form-input"
+                            placeholder="请输入手机号"
+                            value={bindPhone}
+                            onChange={(e) => setBindPhone(e.target.value.replace(/\D/g, ''))}
+                            maxLength={11}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <div className="code-input-group">
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="请输入验证码"
+                              value={bindCode}
+                              onChange={(e) => setBindCode(e.target.value.replace(/\D/g, ''))}
+                              maxLength={6}
+                            />
+                            <button
+                              type="button"
+                              className="code-btn"
+                              onClick={handleSendBindCode}
+                              disabled={bindCountdown > 0 || bindCodeLoading}
+                            >
+                              {bindCodeLoading ? '发送中...' : bindCountdown > 0 ? `${bindCountdown}s` : '获取验证码'}
+                            </button>
+                          </div>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn btn-primary"
+                          style={{ width: '100%' }}
+                          disabled={bindLoading}
+                          onClick={handleBindPhone}
+                        >
+                          {bindLoading ? <span className="loading"></span> : '绑定手机号'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -208,47 +380,108 @@ const Profile = () => {
               </form>
             ) : (
               <form onSubmit={handleChangePassword}>
-                <div className="form-group">
-                  <label className="form-label">旧密码</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="请输入旧密码"
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                  />
-                </div>
+                {!user?.phone ? (
+                  <div style={{ 
+                    padding: '16px', 
+                    background: '#fff8e6', 
+                    borderRadius: '8px', 
+                    marginBottom: '16px',
+                    border: '1px solid #ffe58f'
+                  }}>
+                    <p style={{ color: '#ad6800', fontSize: '13px', margin: 0 }}>
+                      请先在「个人资料」中绑定手机号，然后再设置密码
+                    </p>
+                  </div>
+                ) : user?.hasPassword ? (
+                  <div className="form-group">
+                    <label className="form-label">旧密码</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="请输入旧密码"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ 
+                      padding: '16px', 
+                      background: '#e6f7ff', 
+                      borderRadius: '8px', 
+                      marginBottom: '16px',
+                      border: '1px solid #91d5ff'
+                    }}>
+                      <p style={{ color: '#0050b3', fontSize: '13px', margin: 0 }}>
+                        您的账号还未设置密码，请通过手机验证码设置登录密码
+                      </p>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">手机号</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={user?.phone ? user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : ''}
+                        disabled
+                        style={{ background: '#f5f5f5' }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">验证码</label>
+                      <div className="code-input-group">
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="请输入验证码"
+                          value={setPasswordCode}
+                          onChange={(e) => setSetPasswordCode(e.target.value.replace(/\D/g, ''))}
+                          maxLength={6}
+                        />
+                        <button
+                          type="button"
+                          className="code-btn"
+                          onClick={handleSendSetPasswordCode}
+                          disabled={setPasswordCountdown > 0 || setPasswordCodeLoading}
+                        >
+                          {setPasswordCodeLoading ? '发送中...' : setPasswordCountdown > 0 ? `${setPasswordCountdown}s` : '获取验证码'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="form-group">
-                  <label className="form-label">新密码</label>
+                  <label className="form-label">{user?.hasPassword ? '新密码' : '设置密码'}</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="请设置6-20位新密码"
+                    placeholder="请设置6-20位密码"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     maxLength={20}
+                    disabled={!user?.phone}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">确认新密码</label>
+                  <label className="form-label">确认{user?.hasPassword ? '新' : ''}密码</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="请再次输入新密码"
+                    placeholder="请再次输入密码"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     maxLength={20}
+                    disabled={!user?.phone}
                   />
                 </div>
 
                 <button 
                   type="submit" 
                   className="btn btn-primary"
-                  disabled={loading}
+                  disabled={loading || !user?.phone}
                 >
-                  {loading ? <span className="loading"></span> : '修改密码'}
+                  {loading ? <span className="loading"></span> : (user?.hasPassword ? '修改密码' : '设置密码')}
                 </button>
               </form>
             )}

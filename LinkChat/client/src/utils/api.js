@@ -36,6 +36,8 @@ export const authApi = {
   resetPassword: (data) => api.post('/auth/reset-password', data),
   thirdPartyLogin: (data) => api.post('/auth/third-party', data),
   getUserInfo: () => api.get('/auth/user-info'),
+  bindPhone: (phone, code) => api.post('/auth/bind-phone', { phone, code }),
+  setPassword: (phone, code, password) => api.post('/auth/set-password', { phone, code, password }),
 }
 
 export const userApi = {
@@ -43,7 +45,7 @@ export const userApi = {
   securityVerify: (questions) => api.post('/user/security-verify', { questions }),
   securityCheck: (answers) => api.post('/user/security-check', { answers }),
   getSecurityQuestions: () => api.get('/user/security-questions'),
-  changePassword: (oldPassword, newPassword) => api.post('/user/change-password', { oldPassword, newPassword }),
+  changePassword: (data) => api.post('/user/change-password', data),
   updateProfile: (data) => api.put('/user/profile', data),
 }
 

@@ -198,6 +198,12 @@ export async function get(sql: string, params: any[] = []): Promise<any> {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
   }
   
+  if (sql.includes('SELECT * FROM verification_codes WHERE phone = ? AND type = ?')) {
+    return db.data.verificationCodes
+      .filter(v => v.phone === params[0] && v.type === params[1])
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
+  }
+  
   if (sql.includes('SELECT id, phone, nickname, avatar, real_name, verified FROM users WHERE id = ?')) {
     const user = db.data.users.find(u => u.id === params[0]);
     if (user) {
