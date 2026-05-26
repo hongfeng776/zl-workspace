@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  phone         String?        @unique
+  email         String?        @unique
+  password      String?
+  nickname      String?
+  avatar        String?
+  birthday      DateTime?
+  gender        String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  socialAccounts SocialAccount[]
+  verificationCodes VerificationCode[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model SocialAccount {
+  id          String   @id @default(cuid())
+  provider    String
+  providerId  String
+  accessToken String?
+  refreshToken String?
+  nickname    String?
+  avatar      String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  target    String
+  code      String
+  type      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([target, type])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,184 @@
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const User = require('../models/User');
+const VerificationCode = require('../models/VerificationCode');
+const auth = require('../middleware/auth');
+
+const router = express.Router();
+
+router.post('/delete-account', auth, [
+  body('code').isLength({ min: 6, max: 6 }).withMessage('验证码格式不正确')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { code } = req.body;
+  const { phone } = req.user;
+
+  try {
+    const verification = await VerificationCode.findOne({
+      phone,
+      code,
+      type: 'delete_account',
+      used: false,
+      expiresAt: { $gt: new Date() }
+    });
+
+    if (!verification) {
+      return res.status(400).json({ message: '验证码错误或已过期' });
+    }
+
+    const user = await User.findById(req.user._id);
+    user.isActive = false;
+    await user.save();
+
+    verification.used = true;
+    await verification.save();
+
+    res.json({ message: '账号注销成功' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+router.post('/security-verify', auth, [
+  body('questions').isArray({ min: 2, max: 3 }).withMessage('请设置2-3个安全问题')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { questions } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    user.securityQuestions = questions;
+    user.securityVerified = true;
+    await user.save();
+
+    res.json({ message: '安全验证设置成功' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+router.post('/security-check', auth, [
+  body('answers').isObject().withMessage('请提供安全问题答案')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { answers } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user.securityVerified || user.securityQuestions.length === 0) {
+      return res.status(400).json({ message: '请先设置安全问题' });
+    }
+
+    let correctCount = 0;
+    user.securityQuestions.forEach((q, index) => {
+      if (answers[index] && answers[index] === q.answer) {
+        correctCount++;
+      }
+    });
+
+    if (correctCount < user.securityQuestions.length) {
+      return res.status(400).json({ message: '安全问题答案不正确' });
+    }
+
+    res.json({ message: '安全验证通过' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+router.get('/security-questions', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    res.json({
+      questions: user.securityQuestions.map(q => ({ question: q.question }))
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+router.post('/change-password', auth, [
+  body('oldPassword').isLength({ min: 6, max: 20 }).withMessage('旧密码格式不正确'),
+  body('newPassword').isLength({ min: 6, max: 20 }).withMessage('新密码长度为6-20位')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { oldPassword, newPassword } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user.password) {
+      return res.status(400).json({ message: '请先设置密码' });
+    }
+
+    const isMatch = await user.comparePassword(oldPassword);
+    if (!isMatch) {
+      return res.status(400).json({ message: '旧密码不正确' });
+    }
+
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ message: '新密码不能与旧密码相同' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: '密码修改成功' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+router.put('/profile', auth, [
+  body('nickname').optional().isLength({ min: 1, max: 20 }).withMessage('昵称长度为1-20位'),
+  body('avatar').optional().isURL().withMessage('头像地址格式不正确')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: errors.array()[0].msg });
+  }
+
+  const { nickname, avatar } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (nickname !== undefined) user.nickname = nickname;
+    if (avatar !== undefined) user.avatar = avatar;
+    await user.save();
+
+    res.json({
+      message: '个人信息更新成功',
+      user: {
+        id: user._id,
+        phone: user.phone,
+        nickname: user.nickname,
+        avatar: user.avatar
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: '服务器错误' });
+  }
+});
+
+module.exports = router;

@@ -1,0 +1,15 @@
+{
+  "name": "lechat",
+  "version": "1.0.0",
+  "description": "乐聊 - 前后端分离的聊天应用",
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "keywords": ["chat", "vue", "nodejs"],
+  "author": "",
+  "license": "MIT"
+}
