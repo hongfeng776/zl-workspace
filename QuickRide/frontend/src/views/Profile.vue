@@ -111,12 +111,19 @@ async function handleLogout() {
       type: 'warning'
     });
 
-    await api.post('/auth/logout');
+    try {
+      await api.post('/auth/logout');
+    } catch (apiError) {
+      console.warn('退出登录接口调用失败，将强制清除本地登录状态');
+    }
+
     userStore.logout();
     ElMessage.success('已退出登录');
     router.push('/login');
   } catch (error) {
-    // 用户取消
+    if (error !== 'cancel') {
+      console.error('退出登录失败:', error);
+    }
   }
 }
 </script>

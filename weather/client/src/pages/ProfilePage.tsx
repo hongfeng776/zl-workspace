@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Form,
   Input,
   Button,
   DatePicker,
   Select,
-  Avatar,
   Dropdown,
   MenuProps,
   Modal,
   message,
   Spin,
   Divider,
+  Tag,
 } from 'antd';
 import {
-  UserOutlined,
   LogoutOutlined,
   CameraOutlined,
   CheckCircleFilled,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
@@ -46,10 +46,12 @@ interface UserProfile {
 }
 
 export default function ProfilePage() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, isMockMode } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [binding, setBinding] = useState<string | null>(null);
+  const [unbinding, setUnbinding] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -62,7 +64,7 @@ export default function ProfilePage() {
     fetchSocialAccounts();
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
       const res = await userApi.getProfile();
@@ -91,41 +93,39 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, form]);
 
-  const fetchSocialAccounts = async () => {
+  const fetchSocialAccounts = useCallback(async () => {
     try {
       const res = await socialApi.getAccounts();
       setSocialAccounts(res.data.data || []);
     } catch {
       setSocialAccounts([]);
     }
-  };
+  }, []);
 
   const handleSave = async (values: { nickname: string; birthday: Dayjs | null; gender?: string }) => {
+    setSaving(true);
+    const data = {
+      nickname: values.nickname,
+      birthday: values.birthday ? values.birthday.toISOString() : undefined,
+      gender: values.gender,
+    };
+
     try {
-      setSaving(true);
-      try {
-        const res = await userApi.updateProfile({
-          nickname: values.nickname,
-          birthday: values.birthday ? values.birthday.toISOString() : undefined,
-          gender: values.gender,
-        });
-        const updated = res.data.data;
-        setProfile((prev) => prev ? { ...prev, ...updated } : prev);
-        updateUser(updated);
-        message.success('资料更新成功');
-      } catch {
-        const updated = {
-          nickname: values.nickname,
-          birthday: values.birthday?.toISOString(),
-          gender: values.gender,
-          updatedAt: new Date().toISOString(),
-        };
-        setProfile((prev) => prev ? { ...prev, ...updated } : null);
-        updateUser(updated);
-        message.success('资料更新成功（演示模式）');
-      }
+      const res = await userApi.updateProfile(data);
+      const updated = res.data.data;
+      setProfile((prev) => prev ? { ...prev, ...updated } : prev);
+      updateUser(updated);
+      message.success('资料更新成功');
+    } catch {
+      const updated = {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      };
+      setProfile((prev) => prev ? { ...prev, ...updated } : null);
+      updateUser(updated);
+      message.success('资料更新成功（演示模式）');
     } finally {
       setSaving(false);
     }
@@ -168,6 +168,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
+    setAvatarMenuVisible(false);
     setLogoutModalVisible(true);
   };
 
@@ -175,51 +176,52 @@ export default function ProfilePage() {
     logout();
     message.success('已退出登录');
     setLogoutModalVisible(false);
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   const handleBind = async (provider: string) => {
+    setBinding(provider);
     try {
-      try {
-        await socialApi.bind(provider, {
-          providerId: `mock_${provider}_${Date.now()}`,
-        });
-        message.success('绑定成功');
-        fetchSocialAccounts();
-      } catch {
+      await socialApi.bind(provider, {
+        providerId: `bind_${provider}_${Date.now()}`,
+      });
+      message.success('绑定成功');
+      await fetchSocialAccounts();
+    } catch {
+      const existing = socialAccounts.find((a) => a.provider === provider);
+      if (!existing) {
         const mockAccount: SocialAccount = {
-          id: `mock_${provider}_id`,
+          id: `mock_${provider}_${Date.now()}`,
           provider,
           nickname: `${provider}用户`,
           createdAt: new Date().toISOString(),
         };
         setSocialAccounts((prev) => [...prev, mockAccount]);
-        message.success('绑定成功（演示模式）');
       }
-    } catch {
-      message.error('绑定失败，请重试');
+      message.success('绑定成功（演示模式）');
+    } finally {
+      setBinding(null);
     }
   };
 
   const handleUnbind = async (provider: string) => {
     Modal.confirm({
       title: '确认解绑',
-      content: '确定要解除该社交账号的绑定吗？',
+      content: `确定要解除${providerConfig[provider as keyof typeof providerConfig].name}账号的绑定吗？`,
       okText: '确认解绑',
       cancelText: '取消',
       okButtonProps: { danger: true },
       onOk: async () => {
+        setUnbinding(provider);
         try {
-          try {
-            await socialApi.unbind(provider);
-            message.success('解绑成功');
-            fetchSocialAccounts();
-          } catch {
-            setSocialAccounts((prev) => prev.filter((a) => a.provider !== provider));
-            message.success('解绑成功（演示模式）');
-          }
+          await socialApi.unbind(provider);
+          message.success('解绑成功');
+          await fetchSocialAccounts();
         } catch {
-          message.error('解绑失败，请重试');
+          setSocialAccounts((prev) => prev.filter((a) => a.provider !== provider));
+          message.success('解绑成功（演示模式）');
+        } finally {
+          setUnbinding(null);
         }
       },
     });
@@ -283,7 +285,14 @@ export default function ProfilePage() {
             onChange={handleAvatarChange}
           />
           <div className="user-info">
-            <h2>{profile?.nickname || '未设置昵称'}</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {profile?.nickname || '未设置昵称'}
+              {isMockMode && (
+                <Tag icon={<SwapOutlined />} color="gold" style={{ fontSize: 12 }}>
+                  演示模式
+                </Tag>
+              )}
+            </h2>
             <p>
               {profile?.phone || profile?.email || '未绑定联系方式'}
             </p>
@@ -343,4 +352,68 @@ export default function ProfilePage() {
               const bound = socialAccounts.find((a) => a.provider === provider);
               return (
                 <div key={provider} className="binding-item">
-                  <div className="binding-info">
+                  <div className="binding-info">
+                    <div
+                      className={`binding-icon ${provider}`}
+                      style={{ background: config.color }}
+                    >
+                      {config.icon}
+                    </div>
+                    <div>
+                      <div className="binding-name">{config.name}</div>
+                      <div className="binding-status">
+                        {bound ? (
+                          <>
+                            <CheckCircleFilled style={{ color: '#52c41a', marginRight: 4 }} />
+                            已绑定
+                            {bound.nickname && ` · ${bound.nickname}`}
+                          </>
+                        ) : (
+                          '未绑定'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {bound ? (
+                    <Button
+                      danger
+                      loading={unbinding === provider}
+                      onClick={() => handleUnbind(provider)}
+                    >
+                      解绑
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      ghost
+                      loading={binding === provider}
+                      onClick={() => handleBind(provider)}
+                    >
+                      绑定
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <Modal
+        title="退出登录"
+        open={logoutModalVisible}
+        onOk={confirmLogout}
+        onCancel={() => setLogoutModalVisible(false)}
+        okText="确认退出"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+        destroyOnClose
+      >
+        <p>确定要退出当前账号吗？</p>
+        <p style={{ color: '#999', fontSize: 13 }}>
+          退出后需重新登录才能访问个人信息。
+        </p>
+      </Modal>
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const dbAdapter = require('../utils/dbAdapter');
 
 const auth = async (req, res, next) => {
   try {
@@ -8,7 +8,15 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: '请先登录' });
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
+    let user = await dbAdapter.User.findById(decoded.userId);
+    
+    if (user && user.toObject) {
+      user = user.toObject();
+    }
+    if (user) {
+      delete user.password;
+    }
+    
     if (!user || !user.isActive) {
       return res.status(401).json({ message: '用户不存在或已被禁用' });
     }

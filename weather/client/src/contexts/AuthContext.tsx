@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { setAuthToken, getAuthToken, clearAuthToken } from '../api';
 
 interface User {
   id: string;
@@ -16,10 +17,11 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isMockMode: boolean;
   loading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
-  updateUser: (user: Partial<User>) => void;
+  updateUser: (updates: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,37 +32,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('token');
+    const savedToken = getAuthToken();
     const savedUser = localStorage.getItem('user');
 
     if (savedToken && savedUser) {
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      setAuthToken(savedToken);
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        clearAuthToken();
+      }
     }
     setLoading(false);
+
+    const handleAuthLogout = () => {
+      setToken(null);
+      setUser(null);
+    };
+
+    window.addEventListener('auth:logout', handleAuthLogout);
+    return () => window.removeEventListener('auth:logout', handleAuthLogout);
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+  const login = useCallback((newToken: string, newUser: User) => {
     setToken(newToken);
+    setAuthToken(newToken);
     setUser(newUser);
-  };
+    localStorage.setItem('user', JSON.stringify(newUser));
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
-  };
+    clearAuthToken();
+  }, []);
 
-  const updateUser = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
+  const updateUser = useCallback((updates: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+      const updatedUser = { ...prevUser, ...updates };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-    }
-  };
+      return updatedUser;
+    });
+  }, []);
+
+  const isMockMode = !!token?.startsWith('mock_');
 
   return (
     <AuthContext.Provider
@@ -68,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         isAuthenticated: !!token,
+        isMockMode,
         loading,
         login,
         logout,

@@ -1,16 +1,13 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
-const VerificationCode = require('../models/VerificationCode');
 const auth = require('../middleware/auth');
-const dbCheck = require('../middleware/dbCheck');
+const dbAdapter = require('../utils/dbAdapter');
 
 const router = express.Router();
 
 router.use(auth);
-router.use(dbCheck);
 
-router.post('/delete-account', auth, [
+router.post('/delete-account', [
   body('code').isLength({ min: 6, max: 6 }).withMessage('验证码格式不正确')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -22,7 +19,7 @@ router.post('/delete-account', auth, [
   const { phone } = req.user;
 
   try {
-    const verification = await VerificationCode.findOne({
+    const verification = await dbAdapter.VerificationCode.findOne({
       phone,
       code,
       type: 'delete_account',
@@ -34,12 +31,12 @@ router.post('/delete-account', auth, [
       return res.status(400).json({ message: '验证码错误或已过期' });
     }
 
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     user.isActive = false;
-    await user.save();
+    await dbAdapter.save(user);
 
     verification.used = true;
-    await verification.save();
+    await dbAdapter.save(verification);
 
     res.json({ message: '账号注销成功' });
   } catch (error) {
@@ -48,7 +45,7 @@ router.post('/delete-account', auth, [
   }
 });
 
-router.post('/security-verify', auth, [
+router.post('/security-verify', [
   body('questions').isArray({ min: 2, max: 3 }).withMessage('请设置2-3个安全问题')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -59,10 +56,10 @@ router.post('/security-verify', auth, [
   const { questions } = req.body;
 
   try {
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     user.securityQuestions = questions;
     user.securityVerified = true;
-    await user.save();
+    await dbAdapter.save(user);
 
     res.json({ message: '安全验证设置成功' });
   } catch (error) {
@@ -71,7 +68,7 @@ router.post('/security-verify', auth, [
   }
 });
 
-router.post('/security-check', auth, [
+router.post('/security-check', [
   body('answers').isObject().withMessage('请提供安全问题答案')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -82,7 +79,7 @@ router.post('/security-check', auth, [
   const { answers } = req.body;
 
   try {
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     if (!user.securityVerified || user.securityQuestions.length === 0) {
       return res.status(400).json({ message: '请先设置安全问题' });
     }
@@ -105,9 +102,9 @@ router.post('/security-check', auth, [
   }
 });
 
-router.get('/security-questions', auth, async (req, res) => {
+router.get('/security-questions', async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     res.json({
       questions: user.securityQuestions.map(q => ({ question: q.question }))
     });
@@ -117,7 +114,7 @@ router.get('/security-questions', auth, async (req, res) => {
   }
 });
 
-router.post('/change-password', auth, [
+router.post('/change-password', [
   body('oldPassword').isLength({ min: 6, max: 20 }).withMessage('旧密码格式不正确'),
   body('newPassword').isLength({ min: 6, max: 20 }).withMessage('新密码长度为6-20位')
 ], async (req, res) => {
@@ -129,7 +126,7 @@ router.post('/change-password', auth, [
   const { oldPassword, newPassword } = req.body;
 
   try {
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     if (!user.password) {
       return res.status(400).json({ message: '请先设置密码' });
     }
@@ -144,7 +141,7 @@ router.post('/change-password', auth, [
     }
 
     user.password = newPassword;
-    await user.save();
+    await dbAdapter.save(user);
 
     res.json({ message: '密码修改成功' });
   } catch (error) {
@@ -153,7 +150,7 @@ router.post('/change-password', auth, [
   }
 });
 
-router.put('/profile', auth, [
+router.put('/profile', [
   body('nickname').optional().isLength({ min: 1, max: 20 }).withMessage('昵称长度为1-20位'),
   body('avatar').optional().isURL().withMessage('头像地址格式不正确')
 ], async (req, res) => {
@@ -165,10 +162,10 @@ router.put('/profile', auth, [
   const { nickname, avatar } = req.body;
 
   try {
-    const user = await User.findById(req.user._id);
+    const user = await dbAdapter.User.findById(req.user._id);
     if (nickname !== undefined) user.nickname = nickname;
     if (avatar !== undefined) user.avatar = avatar;
-    await user.save();
+    await dbAdapter.save(user);
 
     res.json({
       message: '个人信息更新成功',

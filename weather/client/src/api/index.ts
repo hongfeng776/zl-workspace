@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { message } from 'antd';
 
 const api = axios.create({
@@ -6,13 +6,39 @@ const api = axios.create({
   timeout: 10000,
 });
 
+let tokenSource = { current: null as string | null };
+
+export function setAuthToken(token: string | null) {
+  tokenSource.current = token;
+  if (token) {
+    localStorage.setItem('token', token);
+  } else {
+    localStorage.removeItem('token');
+  }
+}
+
+export function getAuthToken(): string | null {
+  return tokenSource.current || localStorage.getItem('token');
+}
+
+export function clearAuthToken() {
+  tokenSource.current = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
+
+interface ApiError extends Error {
+  isNetworkError?: boolean;
+  skipGlobalHandler?: boolean;
+}
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
+    const token = getAuthToken();
+    if (token && !token.startsWith('mock_')) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    return config;
+    return config as InternalAxiosRequestConfig;
   },
   (error) => Promise.reject(error)
 );
@@ -21,22 +47,46 @@ api.interceptors.response.use(
   (response) => {
     const res = response.data;
     if (res.code !== 0 && res.code !== undefined) {
-      message.error(res.message || '请求失败');
-      return Promise.reject(new Error(res.message || '请求失败'));
+      const err: ApiError = new Error(res.message || '请求失败');
+      err.name = 'ApiError';
+      if (!response.config.skipGlobalHandler) {
+        message.error(res.message || '请求失败');
+      }
+      return Promise.reject(err);
     }
     return response;
   },
-  (error) => {
+  (error: AxiosError) => {
+    const err: ApiError = new Error();
+    err.name = 'NetworkError';
+    err.isNetworkError = true;
+
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    } else {
-      message.error(error.response?.data?.message || '网络错误');
+      clearAuthToken();
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      if (!error.config?.skipGlobalHandler) {
+        message.warning('登录已过期，请重新登录');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
+      }
+      return Promise.reject(err);
     }
-    return Promise.reject(error);
+
+    if (!error.config?.skipGlobalHandler) {
+      const errorMsg = (error.response?.data as any)?.message || '网络错误，请检查网络连接';
+      message.error(errorMsg);
+    }
+
+    return Promise.reject(err);
   }
 );
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipGlobalHandler?: boolean;
+  }
+}
 
 export const authApi = {
   sendCode: (target: string, type: 'phone' | 'email') =>
@@ -61,13 +111,13 @@ export const authApi = {
 };
 
 export const userApi = {
-  getProfile: () => api.get('/user/profile'),
+  getProfile: () => api.get('/user/profile', { skipGlobalHandler: true }),
   updateProfile: (data: {
     nickname?: string;
     avatar?: string;
     birthday?: string;
     gender?: string;
-  }) => api.put('/user/profile', data),
+  }) => api.put('/user/profile', data, { skipGlobalHandler: true }),
 };
 
 export const socialApi = {
@@ -75,9 +125,9 @@ export const socialApi = {
     api.get(`/social/${provider}/url`),
 
   callback: (provider: string, code: string) =>
-    api.get(`/social/${provider}/callback`, { params: { code } }),
+    api.get(`/social/${provider}/callback`, { params: { code } }, { skipGlobalHandler: true }),
 
-  getAccounts: () => api.get('/social/accounts'),
+  getAccounts: () => api.get('/social/accounts', { skipGlobalHandler: true }),
 
   bind: (provider: string, data: {
     providerId: string;
@@ -85,10 +135,10 @@ export const socialApi = {
     avatar?: string;
     accessToken?: string;
     refreshToken?: string;
-  }) => api.post(`/social/${provider}/bind`, data),
+  }) => api.post(`/social/${provider}/bind`, data, { skipGlobalHandler: true }),
 
   unbind: (provider: string) =>
-    api.delete(`/social/${provider}/unbind`),
+    api.delete(`/social/${provider}/unbind`, { skipGlobalHandler: true }),
 };
 
 export default api;

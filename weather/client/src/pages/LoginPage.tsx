@@ -192,4 +192,14 @@ export default function LoginPage() {
           <Link to="/forgot-password" style={{ color: '#1890ff' }}>
             忘记密码？
           </Link>
-          <span style={{ margin: '0 8px'
+          <span style={{ margin: '0 8px', color: '#ddd' }}>|</span>
+          <Link to="/register" style={{ color: '#1890ff' }}>
+            注册新账号
+          </Link>
+        </div>
+
+        <SocialLoginButtons onSocialLogin={handleSocialLogin} />
+      </div>
+    </div>
+  );
+}

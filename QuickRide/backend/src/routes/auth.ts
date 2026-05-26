@@ -173,7 +173,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/logout', authMiddleware, (req: AuthRequest, res: Response) => {
+router.post('/logout', (req: Request, res: Response) => {
   res.json({ message: '退出登录成功' });
 });
 

@@ -27,15 +27,23 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const url = error.config?.url || '';
+    const isLogoutRequest = url.includes('/auth/logout');
+
     if (error.response) {
       const message = error.response.data?.message || '请求失败';
-      ElMessage.error(message);
       
-      if (error.response.status === 401) {
+      if (!isLogoutRequest) {
+        ElMessage.error(message);
+      }
+      
+      if (error.response.status === 401 && !isLogoutRequest) {
         localStorage.removeItem('token');
       }
     } else {
-      ElMessage.error('网络错误，请稍后重试');
+      if (!isLogoutRequest) {
+        ElMessage.error('网络错误，请稍后重试');
+      }
     }
     return Promise.reject(error);
   }

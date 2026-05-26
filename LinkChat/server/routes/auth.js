@@ -1,14 +1,10 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
-const VerificationCode = require('../models/VerificationCode');
 const auth = require('../middleware/auth');
-const dbCheck = require('../middleware/dbCheck');
+const dbAdapter = require('../utils/dbAdapter');
 
 const router = express.Router();
-
-router.use(dbCheck);
 
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -33,14 +29,14 @@ router.post('/send-code', [
 
   try {
     if (type === 'register') {
-      const existingUser = await User.findOne({ phone });
+      const existingUser = await dbAdapter.User.findOne({ phone });
       if (existingUser) {
         return res.status(400).json({ message: '该手机号已注册' });
       }
     }
 
     if (type === 'reset_password') {
-      const existingUser = await User.findOne({ phone });
+      const existingUser = await dbAdapter.User.findOne({ phone });
       if (!existingUser) {
         return res.status(400).json({ message: '该手机号未注册' });
       }
@@ -49,8 +45,8 @@ router.post('/send-code', [
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await VerificationCode.deleteMany({ phone, type, used: false });
-    await VerificationCode.create({ phone, code, type, expiresAt });
+    await dbAdapter.VerificationCode.deleteMany({ phone, type, used: false });
+    await dbAdapter.VerificationCode.create({ phone, code, type, expiresAt });
 
     console.log(`验证码: ${phone} - ${type} - ${code}`);
 
@@ -74,7 +70,7 @@ router.post('/register', [
   const { phone, code, password, nickname } = req.body;
 
   try {
-    const verification = await VerificationCode.findOne({
+    const verification = await dbAdapter.VerificationCode.findOne({
       phone,
       code,
       type: 'register',
@@ -86,19 +82,19 @@ router.post('/register', [
       return res.status(400).json({ message: '验证码错误或已过期' });
     }
 
-    const existingUser = await User.findOne({ phone });
+    const existingUser = await dbAdapter.User.findOne({ phone });
     if (existingUser) {
       return res.status(400).json({ message: '该手机号已注册' });
     }
 
-    const user = await User.create({
+    const user = await dbAdapter.User.create({
       phone,
       password,
       nickname: nickname || `乐聊用户${phone.slice(-4)}`
     });
 
     verification.used = true;
-    await verification.save();
+    await dbAdapter.save(verification);
 
     const token = generateToken(user._id);
 
@@ -130,7 +126,7 @@ router.post('/login', [
   const { phone, password } = req.body;
 
   try {
-    const user = await User.findOne({ phone, isActive: true });
+    const user = await dbAdapter.User.findOne({ phone, isActive: true });
     if (!user) {
       return res.status(400).json({ message: '手机号或密码错误' });
     }
@@ -142,7 +138,7 @@ router.post('/login', [
 
     user.lastLoginTime = new Date();
     user.lastLoginIp = req.ip;
-    await user.save();
+    await dbAdapter.save(user);
 
     const token = generateToken(user._id);
 
@@ -174,7 +170,7 @@ router.post('/login-code', [
   const { phone, code } = req.body;
 
   try {
-    const verification = await VerificationCode.findOne({
+    const verification = await dbAdapter.VerificationCode.findOne({
       phone,
       code,
       type: 'login',
@@ -186,20 +182,20 @@ router.post('/login-code', [
       return res.status(400).json({ message: '验证码错误或已过期' });
     }
 
-    let user = await User.findOne({ phone, isActive: true });
+    let user = await dbAdapter.User.findOne({ phone, isActive: true });
     if (!user) {
-      user = await User.create({
+      user = await dbAdapter.User.create({
         phone,
         nickname: `乐聊用户${phone.slice(-4)}`
       });
     }
 
     verification.used = true;
-    await verification.save();
+    await dbAdapter.save(verification);
 
     user.lastLoginTime = new Date();
     user.lastLoginIp = req.ip;
-    await user.save();
+    await dbAdapter.save(user);
 
     const token = generateToken(user._id);
 
@@ -232,7 +228,7 @@ router.post('/reset-password', [
   const { phone, code, password } = req.body;
 
   try {
-    const verification = await VerificationCode.findOne({
+    const verification = await dbAdapter.VerificationCode.findOne({
       phone,
       code,
       type: 'reset_password',
@@ -244,16 +240,16 @@ router.post('/reset-password', [
       return res.status(400).json({ message: '验证码错误或已过期' });
     }
 
-    const user = await User.findOne({ phone });
+    const user = await dbAdapter.User.findOne({ phone });
     if (!user) {
       return res.status(400).json({ message: '用户不存在' });
     }
 
     user.password = password;
-    await user.save();
+    await dbAdapter.save(user);
 
     verification.used = true;
-    await verification.save();
+    await dbAdapter.save(verification);
 
     res.json({ message: '密码重置成功' });
   } catch (error) {
@@ -275,10 +271,10 @@ router.post('/third-party', [
 
   try {
     const query = platform === 'wechat' ? { wechatId: openId } : { qqId: openId };
-    let user = await User.findOne(query);
+    let user = await dbAdapter.User.findOne(query);
 
     if (!user) {
-      user = await User.create({
+      user = await dbAdapter.User.create({
         ...query,
         nickname: nickname || `${platform === 'wechat' ? '微信' : 'QQ'}用户`,
         avatar: avatar || ''
@@ -291,7 +287,7 @@ router.post('/third-party', [
 
     user.lastLoginTime = new Date();
     user.lastLoginIp = req.ip;
-    await user.save();
+    await dbAdapter.save(user);
 
     const token = generateToken(user._id);
 
